@@ -435,7 +435,11 @@ export function BookingDashboard() {
                   <Label htmlFor="contact">Select Contact</Label>
                   <Select value={bookContactId} onValueChange={val => setBookContactId(val || "")} required>
                     <SelectTrigger className="border-border">
-                      <SelectValue placeholder="Choose a client..." />
+                      <span className="text-sm text-foreground">
+                        {contacts.find(c => c.id === bookContactId)
+                          ? `${contacts.find(c => c.id === bookContactId)?.name} (${contacts.find(c => c.id === bookContactId)?.phone})`
+                          : "Choose a client..."}
+                      </span>
                     </SelectTrigger>
                     <SelectContent className="border-border bg-card">
                       {contacts.map(c => (
@@ -450,7 +454,9 @@ export function BookingDashboard() {
                   <Label htmlFor="provider">Resource Provider</Label>
                   <Select value={bookProviderId} onValueChange={val => setBookProviderId(val || "")} required>
                     <SelectTrigger className="border-border">
-                      <SelectValue placeholder="Choose staff/bay..." />
+                      <span className="text-sm text-foreground">
+                        {providers.find(p => p.id === bookProviderId)?.name || "Choose staff/bay..."}
+                      </span>
                     </SelectTrigger>
                     <SelectContent className="border-border bg-card">
                       {providers.map(p => (
@@ -463,7 +469,11 @@ export function BookingDashboard() {
                   <Label htmlFor="service">Service</Label>
                   <Select value={bookServiceId} onValueChange={val => setBookServiceId(val || "")} required>
                     <SelectTrigger className="border-border">
-                      <SelectValue placeholder="Choose service..." />
+                      <span className="text-sm text-foreground">
+                        {services.find(s => s.id === bookServiceId)
+                          ? `${services.find(s => s.id === bookServiceId)?.name} (${services.find(s => s.id === bookServiceId)?.duration_minutes}m)`
+                          : "Choose service..."}
+                      </span>
                     </SelectTrigger>
                     <SelectContent className="border-border bg-card">
                       {services.map(s => (
@@ -558,7 +568,9 @@ export function BookingDashboard() {
               {/* Provider Selector */}
               <Select value={filterProviderId} onValueChange={val => setFilterProviderId(val || "all")}>
                 <SelectTrigger className="w-[160px] border-border bg-card">
-                  <SelectValue placeholder="All Providers" />
+                  <span className="text-sm text-foreground">
+                    {filterProviderId === "all" ? "All Providers" : providers.find(p => p.id === filterProviderId)?.name || "All Providers"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-card">
                   <SelectItem value="all">All Providers</SelectItem>
@@ -571,7 +583,9 @@ export function BookingDashboard() {
               {/* Date Range Selector */}
               <Select value={filterDateRange} onValueChange={val => setFilterDateRange(val || "all")}>
                 <SelectTrigger className="w-[140px] border-border bg-card">
-                  <SelectValue placeholder="All Dates" />
+                  <span className="text-sm text-foreground">
+                    {filterDateRange === "all" ? "All Dates" : filterDateRange === "today" ? "Today" : filterDateRange === "tomorrow" ? "Tomorrow" : "Next 7 Days"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-card">
                   <SelectItem value="all">All Dates</SelectItem>
@@ -584,7 +598,9 @@ export function BookingDashboard() {
               {/* Status Selector */}
               <Select value={filterStatus} onValueChange={val => setFilterStatus(val || "confirmed")}>
                 <SelectTrigger className="w-[140px] border-border bg-card">
-                  <SelectValue placeholder="Status" />
+                  <span className="text-sm text-foreground">
+                    {filterStatus === "all" ? "All Statuses" : filterStatus === "confirmed" ? "Confirmed" : "Cancelled"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-card">
                   <SelectItem value="confirmed">Confirmed</SelectItem>
@@ -1253,7 +1269,9 @@ export function BookingDashboard() {
                 <Label htmlFor="sched_provider">Resource Provider</Label>
                 <Select value={schedProviderId} onValueChange={val => setSchedProviderId(val || "")}>
                   <SelectTrigger className="border-border">
-                    <SelectValue placeholder="Select staff..." />
+                    <span className="text-sm text-foreground">
+                      {providers.find(p => p.id === schedProviderId)?.name || "Select staff..."}
+                    </span>
                   </SelectTrigger>
                   <SelectContent className="border-border bg-card">
                     {providers.map(p => (
