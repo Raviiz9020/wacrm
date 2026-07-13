@@ -210,6 +210,7 @@ export async function PATCH(request: Request) {
     const { data: appt } = await supabase
       .from('booking_appointments')
       .select(`
+        id,
         start_time,
         contact_id,
         conversation_id,
