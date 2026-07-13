@@ -915,7 +915,7 @@ async function processMessage(
           } else {
             // Send text message stating no slots are available for the day
             const { engineSendText } = await import('@/lib/flows/meta-send');
-            const { decrypt } = await import('@/lib/flows/meta-send');
+            const { decrypt } = await import('@/lib/whatsapp/encryption');
             const { data: config } = await supabaseAdmin()
               .from('whatsapp_config')
               .select('access_token, phone_number_id')

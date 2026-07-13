@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         .single();
 
       if (whatsappConfig) {
-        const { decrypt } = await import('@/lib/flows/meta-send'); // or shared decrypt
+        const { decrypt } = await import('@/lib/whatsapp/encryption');
         // Find E164 phone number
         const { data: contact } = await dbAdmin
           .from('contacts')
