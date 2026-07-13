@@ -285,3 +285,61 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  // 1. Role validation - Deleting appointments requires at least an agent role
+  try {
+    await requireRole('agent');
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+
+  try {
+    const body = await request.json().catch(() => null);
+    if (!body || !body.appointment_id) {
+      return NextResponse.json({ error: 'appointment_id is required.' }, { status: 400 });
+    }
+
+    const { appointment_id } = body;
+
+    // Resolve user authenticated context
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Resolve user tenancy account
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_id')
+      .eq('user_id', user.id)
+      .single();
+
+    const accountId = profile?.account_id as string | undefined;
+    if (!accountId) {
+      return NextResponse.json(
+        { error: 'Your profile is not linked to a tenant account.' },
+        { status: 403 }
+      );
+    }
+
+    // Delete the appointment row
+    const { error: deleteErr } = await supabase
+      .from('booking_appointments')
+      .delete()
+      .eq('id', appointment_id)
+      .eq('account_id', accountId);
+
+    if (deleteErr) throw deleteErr;
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[booking-api] DELETE appointment failed:', err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

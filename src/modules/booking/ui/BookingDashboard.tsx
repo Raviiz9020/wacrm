@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List } from "lucide-react";
+import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List, XCircle } from "lucide-react";
 import { useBooking, type Provider, type Service, type Appointment } from "../hooks/useBooking"; // corrected hook path
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ export function BookingDashboard() {
     getSlots,
     bookAppointment,
     cancel,
+    deleteAppointment,
     deleteProvider,
     updateProvider,
     deleteService,
@@ -205,6 +206,7 @@ export function BookingDashboard() {
       }
     }
 
+    return true;
   });
 
   // Sort appointments by start_time ascending
@@ -719,8 +721,28 @@ export function BookingDashboard() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                                onClick={() => cancel(appt.id)}
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to cancel this appointment?")) {
+                                    cancel(appt.id);
+                                  }
+                                }}
                                 title="Cancel Appointment"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+
+                            {appt.status === "cancelled" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                    deleteAppointment(appt.id);
+                                  }
+                                }}
+                                title="Delete Appointment permanently"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -865,8 +887,31 @@ export function BookingDashboard() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400"
-                                      onClick={() => cancel(appt.id)}
+                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
+                                      onClick={() => {
+                                        if (confirm("Are you sure you want to cancel this appointment?")) {
+                                          cancel(appt.id);
+                                        }
+                                      }}
+                                      title="Cancel Appointment"
+                                    >
+                                      <XCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {appt.status === "cancelled" && (
+                                  <div className="flex justify-end pt-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
+                                      onClick={() => {
+                                        if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                          deleteAppointment(appt.id);
+                                        }
+                                      }}
+                                      title="Delete Appointment permanently"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
@@ -948,7 +993,28 @@ export function BookingDashboard() {
                               variant="ghost"
                               size="icon"
                               className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
-                              onClick={() => cancel(appt.id)}
+                              onClick={() => {
+                                if (confirm("Are you sure you want to cancel this appointment?")) {
+                                  cancel(appt.id);
+                                }
+                              }}
+                              title="Cancel Appointment"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+
+                          {appt.status === "cancelled" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                  deleteAppointment(appt.id);
+                                }
+                              }}
+                              title="Delete Appointment permanently"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

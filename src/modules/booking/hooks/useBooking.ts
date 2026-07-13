@@ -382,6 +382,23 @@ export function useBooking() {
     }
   };
 
+  const deleteAppointment = async (appointmentId: string) => {
+    if (!account?.id) return;
+    try {
+      const res = await fetch('/api/v1/booking/appointments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointment_id: appointmentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to delete appointment');
+      fetchAppointments(); // Refresh
+    } catch (err) {
+      console.error('Delete appointment failed:', err);
+      throw err;
+    }
+  };
+
   return {
     providers,
     services,
@@ -396,6 +413,7 @@ export function useBooking() {
     getSlots,
     bookAppointment,
     cancel,
+    deleteAppointment,
     deleteProvider,
     updateProvider,
     deleteService,
