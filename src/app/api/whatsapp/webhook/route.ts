@@ -788,6 +788,7 @@ async function processMessage(
         const { data: apptInfo } = await supabaseAdmin()
           .from('booking_appointments')
           .select(`
+            id,
             start_time,
             provider:booking_providers(name),
             service:booking_services(name)
@@ -807,12 +808,26 @@ async function processMessage(
             hour: 'numeric',
             minute: '2-digit'
           });
+          const startUtc = new Date(apptInfo.start_time);
+          const apptDate = startUtc.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+          const apptTime = startUtc.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
 
           bookingCreatedVars = {
             booking_start_time: startTime,
             provider_name: providerName,
             service_name: serviceName,
             contact_name: contactRecord.name,
+            customer_name: contactRecord.name,
+            appointment_date: apptDate,
+            appointment_time: apptTime,
+            booking_reference: apptInfo.id,
           };
         }
       }
@@ -1026,6 +1041,7 @@ async function processMessage(
         const { data: apptInfo } = await supabaseAdmin()
           .from('booking_appointments')
           .select(`
+            id,
             start_time,
             provider:booking_providers(name),
             service:booking_services(name)
@@ -1042,12 +1058,26 @@ async function processMessage(
             hour: 'numeric',
             minute: '2-digit'
           });
+          const startUtc = new Date(apptInfo.start_time);
+          const apptDate = startUtc.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+          const apptTime = startUtc.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
 
           bookingCancelledVars = {
             booking_start_time: startTime,
             provider_name: providerName,
             service_name: serviceName,
             contact_name: contactRecord.name,
+            customer_name: contactRecord.name,
+            appointment_date: apptDate,
+            appointment_time: apptTime,
+            booking_reference: apptInfo.id,
           };
         }
       }

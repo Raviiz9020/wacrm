@@ -128,6 +128,17 @@ export async function POST(request: Request) {
             provider_name: providerName,
             service_name: serviceName,
             contact_name: contactName,
+            customer_name: contactName,
+            appointment_date: new Date(appointment.start_time).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            }),
+            appointment_time: new Date(appointment.start_time).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit'
+            }),
+            booking_reference: appointment.id,
           }
         }
       }).catch(err => console.error('[booking-api] Failed to run automations:', err));
@@ -248,6 +259,17 @@ export async function PATCH(request: Request) {
             provider_name: providerName,
             service_name: serviceName,
             contact_name: contactName,
+            customer_name: contactName,
+            appointment_date: new Date(appt.start_time).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            }),
+            appointment_time: new Date(appt.start_time).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit'
+            }),
+            booking_reference: appt.id,
           }
         }
       }).catch(err => console.error('[booking-api] Failed to run cancellation automations:', err));
