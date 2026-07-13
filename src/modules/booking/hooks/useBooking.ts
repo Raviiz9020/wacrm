@@ -27,6 +27,7 @@ export interface Appointment {
   end_time: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'noshow';
   notes: string | null;
+  conversation_id: string | null;
   provider: { id: string; name: string };
   service: { id: string; name: string; duration_minutes: number };
   contact: { id: string; name: string; phone: string };
@@ -79,7 +80,7 @@ export function useBooking() {
       const { data, error } = await supabase
         .from('booking_appointments')
         .select(`
-          id, start_time, end_time, status, notes,
+          id, start_time, end_time, status, notes, conversation_id,
           provider:booking_providers(id, name),
           service:booking_services(id, name, duration_minutes),
           contact:contacts(id, name, phone)

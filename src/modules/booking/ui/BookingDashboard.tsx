@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2 } from "lucide-react";
+import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List } from "lucide-react";
 import { useBooking, type Provider, type Service, type Appointment } from "../hooks/useBooking"; // corrected hook path
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,6 +112,116 @@ export function BookingDashboard() {
     }
     fetchContacts();
   }, []);
+
+  // Local filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterProviderId, setFilterProviderId] = useState("all");
+  const [filterDateRange, setFilterDateRange] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("confirmed"); // default to confirmed
+  const [viewMode, setViewMode] = useState<"agenda" | "timeline" | "table">("agenda");
+  const [selectedTimelineDate, setSelectedTimelineDate] = useState(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+
+  const formatDateHeader = (isoStr: string) => {
+    const d = new Date(isoStr);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+
+    const isSameDay = (d1: Date, d2: Date) => 
+      d1.getDate() === d2.getDate() && 
+      d1.getMonth() === d2.getMonth() && 
+      d1.getFullYear() === d2.getFullYear();
+
+    if (isSameDay(d, today)) return "Today";
+    if (isSameDay(d, tomorrow)) return "Tomorrow";
+
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const formatTimeStr = (isoStr: string) => {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  const filteredAppointments = appointments.filter(appt => {
+    // 1. Search term
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      const contactName = (appt.contact?.name || "").toLowerCase();
+      const contactPhone = (appt.contact?.phone || "").toLowerCase();
+      const providerName = (appt.provider?.name || "").toLowerCase();
+      const serviceName = (appt.service?.name || "").toLowerCase();
+      if (!contactName.includes(term) && !contactPhone.includes(term) && !providerName.includes(term) && !serviceName.includes(term)) {
+        return false;
+      }
+    }
+
+    // 2. Provider filter
+    if (filterProviderId !== "all" && appt.provider?.id !== filterProviderId) {
+      return false;
+    }
+
+    // 3. Status filter
+    if (filterStatus !== "all" && appt.status !== filterStatus) {
+      return false;
+    }
+
+    // 4. Date Range filter
+    if (filterDateRange !== "all") {
+      const apptDate = new Date(appt.start_time);
+      const today = new Date();
+      
+      const startOfDay = (d: Date) => {
+        const copy = new Date(d);
+        copy.setHours(0, 0, 0, 0);
+        return copy;
+      };
+
+      const endOfDay = (d: Date) => {
+        const copy = new Date(d);
+        copy.setHours(23, 59, 59, 999);
+        return copy;
+      };
+
+      const todayStart = startOfDay(today);
+      const todayEnd = endOfDay(today);
+
+      if (filterDateRange === "today") {
+        if (apptDate < todayStart || apptDate > todayEnd) return false;
+      } else if (filterDateRange === "tomorrow") {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        if (apptDate < startOfDay(tomorrow) || apptDate > endOfDay(tomorrow)) return false;
+      } else if (filterDateRange === "week") {
+        const weekEnd = new Date(today);
+        weekEnd.setDate(today.getDate() + 7);
+        if (apptDate < todayStart || apptDate > endOfDay(weekEnd)) return false;
+      }
+    }
+
+  });
+
+  // Sort appointments by start_time ascending
+  const sortedAppts = [...filteredAppointments].sort((a, b) => 
+    new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  );
+
+  // Group by Date for Agenda View
+  const groupedAppts: { [dateStr: string]: Appointment[] } = {};
+  sortedAppts.forEach(appt => {
+    const dateObj = new Date(appt.start_time);
+    const dateStr = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, "0") + "-" + String(dateObj.getDate()).padStart(2, "0");
+    if (!groupedAppts[dateStr]) {
+      groupedAppts[dateStr] = [];
+    }
+    groupedAppts[dateStr].push(appt);
+  });
 
   // Fetch slots dynamically when booking details change
   useEffect(() => {
@@ -321,7 +431,7 @@ export function BookingDashboard() {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="contact">Select Contact</Label>
-                  <Select value={bookContactId} onValueChange={setBookContactId} required>
+                  <Select value={bookContactId} onValueChange={val => setBookContactId(val || "")} required>
                     <SelectTrigger className="border-border">
                       <SelectValue placeholder="Choose a client..." />
                     </SelectTrigger>
@@ -336,7 +446,7 @@ export function BookingDashboard() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="provider">Resource Provider</Label>
-                  <Select value={bookProviderId} onValueChange={setBookProviderId} required>
+                  <Select value={bookProviderId} onValueChange={val => setBookProviderId(val || "")} required>
                     <SelectTrigger className="border-border">
                       <SelectValue placeholder="Choose staff/bay..." />
                     </SelectTrigger>
@@ -349,7 +459,7 @@ export function BookingDashboard() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="service">Service</Label>
-                  <Select value={bookServiceId} onValueChange={setBookServiceId} required>
+                  <Select value={bookServiceId} onValueChange={val => setBookServiceId(val || "")} required>
                     <SelectTrigger className="border-border">
                       <SelectValue placeholder="Choose service..." />
                     </SelectTrigger>
@@ -429,20 +539,353 @@ export function BookingDashboard() {
 
         {/* Tab 1: Appointments List */}
         <TabsContent value="appointments" className="space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle>Appointments Calendar</CardTitle>
-              <CardDescription>View, cancel, and manage client appointment bookings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="py-10 text-center text-muted-foreground animate-pulse">Loading appointments...</div>
-              ) : appointments.length === 0 ? (
-                <div className="py-10 text-center text-muted-foreground">
-                  <CalendarX2 className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-                  No upcoming appointments booked.
+          {/* Filters & Search Control Bar */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-muted/20 p-4 border border-border rounded-lg">
+            <div className="flex flex-1 flex-wrap gap-2 items-center">
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-[240px]">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customer, provider, service..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-8 border-border bg-card text-foreground"
+                />
+              </div>
+
+              {/* Provider Selector */}
+              <Select value={filterProviderId} onValueChange={val => setFilterProviderId(val || "all")}>
+                <SelectTrigger className="w-[160px] border-border bg-card">
+                  <SelectValue placeholder="All Providers" />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-card">
+                  <SelectItem value="all">All Providers</SelectItem>
+                  {providers.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Date Range Selector */}
+              <Select value={filterDateRange} onValueChange={val => setFilterDateRange(val || "all")}>
+                <SelectTrigger className="w-[140px] border-border bg-card">
+                  <SelectValue placeholder="All Dates" />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-card">
+                  <SelectItem value="all">All Dates</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                  <SelectItem value="week">Next 7 Days</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Status Selector */}
+              <Select value={filterStatus} onValueChange={val => setFilterStatus(val || "confirmed")}>
+                <SelectTrigger className="w-[140px] border-border bg-card">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-card">
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-muted p-1 border border-border rounded-lg self-start md:self-auto">
+              <Button
+                variant={viewMode === "agenda" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 text-xs gap-1"
+                onClick={() => setViewMode("agenda")}
+              >
+                <List className="h-3.5 w-3.5" /> Agenda
+              </Button>
+              <Button
+                variant={viewMode === "timeline" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 text-xs gap-1"
+                onClick={() => setViewMode("timeline")}
+              >
+                <CalendarDays className="h-3.5 w-3.5" /> Daily Roster
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 text-xs gap-1"
+                onClick={() => setViewMode("table")}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Table
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="py-20 text-center text-muted-foreground animate-pulse">Loading appointments...</div>
+          ) : filteredAppointments.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground border border-dashed border-border rounded-lg bg-card">
+              <CalendarX2 className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
+              No appointments match the selected filters.
+            </div>
+          ) : viewMode === "agenda" ? (
+            /* Grouped Agenda View */
+            <div className="space-y-6">
+              {Object.keys(groupedAppts).map(dateStr => (
+                <div key={dateStr} className="space-y-3">
+                  {/* Daily Header */}
+                  <div className="flex items-center gap-2 border-b border-border pb-1">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-foreground text-sm">
+                      {formatDateHeader(groupedAppts[dateStr][0].start_time)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-semibold">
+                      {groupedAppts[dateStr].length} {groupedAppts[dateStr].length === 1 ? 'booking' : 'bookings'}
+                    </span>
+                  </div>
+
+                  {/* Cards list */}
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {groupedAppts[dateStr].map(appt => (
+                      <Card key={appt.id} className="border-border bg-card hover:bg-muted/10 transition-all">
+                        <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
+                          <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
+                            <div>
+                              {/* Time & Provider row */}
+                              <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
+                                  {appt.provider?.name}
+                                </span>
+                              </div>
+
+                              {/* Customer name + chat icon */}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
+                                  {appt.conversation_id && (
+                                    <a
+                                      href={`/inbox?c=${appt.conversation_id}`}
+                                      className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
+                                      title="Open Chat in Inbox"
+                                    >
+                                      <MessageSquare className="h-3.5 w-3.5" />
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
+                              </div>
+                            </div>
+
+                            {/* Service and Notes */}
+                            <div className="space-y-1">
+                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                <span className="font-medium text-foreground">{appt.service?.name}</span>
+                                <span>•</span>
+                                <span>{appt.service?.duration_minutes} mins</span>
+                              </div>
+                              {appt.notes && (
+                                <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
+                                  "{appt.notes}"
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status and Action Column */}
+                          <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
+                            <Badge
+                              variant={
+                                appt.status === "confirmed"
+                                  ? "default"
+                                  : appt.status === "cancelled"
+                                  ? "destructive"
+                                  : "outline"
+                              }
+                              className={
+                                appt.status === "confirmed"
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : ""
+                              }
+                            >
+                              {appt.status}
+                            </Badge>
+
+                            {appt.status === "confirmed" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                onClick={() => cancel(appt.id)}
+                                title="Cancel Appointment"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              ) : (
+              ))}
+            </div>
+          ) : viewMode === "timeline" ? (
+            /* Roster Timeline View */
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/10 p-3 border border-border rounded-lg justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4.5 w-4.5 text-primary" />
+                  <span className="font-semibold text-sm text-foreground">Schedule Roster for</span>
+                  <Input
+                    type="date"
+                    value={selectedTimelineDate}
+                    onChange={e => setSelectedTimelineDate(e.target.value)}
+                    className="w-[160px] border-border bg-card h-8 py-0.5 text-sm font-semibold"
+                  />
+                </div>
+                <div className="flex gap-1.5 self-end sm:self-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-border text-xs"
+                    onClick={() => {
+                      const prev = new Date(selectedTimelineDate);
+                      prev.setDate(prev.getDate() - 1);
+                      const y = prev.getFullYear();
+                      const m = String(prev.getMonth() + 1).padStart(2, "0");
+                      const d = String(prev.getDate()).padStart(2, "0");
+                      setSelectedTimelineDate(`${y}-${m}-${d}`);
+                    }}
+                  >
+                    Previous Day
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-border text-xs"
+                    onClick={() => {
+                      const today = new Date();
+                      const y = today.getFullYear();
+                      const m = String(today.getMonth() + 1).padStart(2, "0");
+                      const d = String(today.getDate()).padStart(2, "0");
+                      setSelectedTimelineDate(`${y}-${m}-${d}`);
+                    }}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-border text-xs"
+                    onClick={() => {
+                      const next = new Date(selectedTimelineDate);
+                      next.setDate(next.getDate() + 1);
+                      const y = next.getFullYear();
+                      const m = String(next.getMonth() + 1).padStart(2, "0");
+                      const d = String(next.getDate()).padStart(2, "0");
+                      setSelectedTimelineDate(`${y}-${m}-${d}`);
+                    }}
+                  >
+                    Next Day
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {providers.filter(p => p.is_active).map(provider => {
+                  const provAppts = sortedAppts.filter(appt => {
+                    if (appt.provider?.id !== provider.id) return false;
+                    const apptDate = new Date(appt.start_time);
+                    const apptDateStr = apptDate.getFullYear() + "-" + String(apptDate.getMonth() + 1).padStart(2, "0") + "-" + String(apptDate.getDate()).padStart(2, "0");
+                    return apptDateStr === selectedTimelineDate;
+                  });
+
+                  return (
+                    <Card key={provider.id} className="border-border bg-card flex flex-col min-h-[300px]">
+                      <CardHeader className="p-3.5 border-b border-border flex flex-row items-center justify-between space-y-0 bg-muted/10">
+                        <div>
+                          <CardTitle className="text-sm font-bold text-foreground">{provider.name}</CardTitle>
+                          <CardDescription className="text-[11px] truncate max-w-[150px]">{provider.description || "General Provider"}</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-primary hover:bg-primary/10 rounded-md"
+                          onClick={() => {
+                            setBookProviderId(provider.id);
+                            setBookDate(selectedTimelineDate);
+                            setIsBookOpen(true);
+                          }}
+                          title="Book slot for this provider"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-3 flex-1 space-y-3 bg-card overflow-y-auto">
+                        {provAppts.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-muted-foreground/60 text-xs py-16 text-center">
+                            <CalendarX2 className="h-6 w-6 mb-2 text-muted-foreground/30" />
+                            No bookings today
+                          </div>
+                        ) : (
+                          provAppts.map(appt => (
+                            <Card key={appt.id} className="border-border bg-muted/20 hover:bg-muted/40 transition-colors">
+                              <div className="p-3 space-y-2">
+                                <div className="flex justify-between items-start gap-1">
+                                  <span className="text-[9px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
+                                    {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                  </span>
+                                  <Badge
+                                    variant={appt.status === "confirmed" ? "default" : "destructive"}
+                                    className={`text-[8px] px-1 py-0.5 ${appt.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}`}
+                                  >
+                                    {appt.status}
+                                  </Badge>
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-semibold text-foreground">{appt.contact?.name || "Unknown"}</span>
+                                    {appt.conversation_id && (
+                                      <a
+                                        href={`/inbox?c=${appt.conversation_id}`}
+                                        className="text-primary hover:text-primary/80"
+                                      >
+                                        <MessageSquare className="h-3 w-3" />
+                                      </a>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground">{appt.service?.name} ({appt.service?.duration_minutes}m)</p>
+                                </div>
+                                {appt.status === "confirmed" && (
+                                  <div className="flex justify-end pt-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400"
+                                      onClick={() => cancel(appt.id)}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </Card>
+                          ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Traditional Table View (Original with improvements) */
+            <Card className="border-border bg-card">
+              <CardContent className="p-0">
                 <Table>
                   <TableHeader className="border-border">
                     <TableRow className="border-border hover:bg-transparent">
@@ -455,20 +898,30 @@ export function BookingDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {appointments.map(appt => (
+                    {sortedAppts.map(appt => (
                       <TableRow key={appt.id} className="border-border hover:bg-muted/30">
                         <TableCell>
-                          <div className="font-medium text-foreground">{appt.contact?.name || "Unknown"}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
+                            {appt.conversation_id && (
+                              <a
+                                href={`/inbox?c=${appt.conversation_id}`}
+                                className="text-primary hover:text-primary/80 transition-colors"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{appt.service?.name}</div>
+                          <div className="font-medium text-sm">{appt.service?.name}</div>
                           <div className="text-xs text-muted-foreground">{appt.service?.duration_minutes} mins</div>
                         </TableCell>
-                        <TableCell className="font-medium text-muted-foreground">
+                        <TableCell className="font-medium text-muted-foreground text-sm">
                           {appt.provider?.name}
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium text-sm">
                           {formatDateTime(appt.start_time)}
                         </TableCell>
                         <TableCell>
@@ -494,7 +947,7 @@ export function BookingDashboard() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-muted-foreground hover:text-rose-400"
+                              className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
                               onClick={() => cancel(appt.id)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -505,9 +958,9 @@ export function BookingDashboard() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab 2: Resources List */}
@@ -732,7 +1185,7 @@ export function BookingDashboard() {
             <CardContent className="space-y-6">
               <div className="grid gap-2 max-w-[280px]">
                 <Label htmlFor="sched_provider">Resource Provider</Label>
-                <Select value={schedProviderId} onValueChange={setSchedProviderId}>
+                <Select value={schedProviderId} onValueChange={val => setSchedProviderId(val || "")}>
                   <SelectTrigger className="border-border">
                     <SelectValue placeholder="Select staff..." />
                   </SelectTrigger>
