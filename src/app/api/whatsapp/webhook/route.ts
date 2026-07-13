@@ -811,6 +811,7 @@ async function processMessage(
             booking_start_time: startTime,
             provider_name: providerName,
             service_name: serviceName,
+            contact_name: contactRecord.name,
           };
         }
       }

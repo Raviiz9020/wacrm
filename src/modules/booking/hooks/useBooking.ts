@@ -278,12 +278,13 @@ export function useBooking() {
   const cancel = async (appointmentId: string) => {
     if (!account?.id) return;
     try {
-      const { error } = await supabase
-        .from('booking_appointments')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-        .eq('id', appointmentId)
-        .eq('account_id', account.id);
-      if (error) throw error;
+      const res = await fetch('/api/v1/booking/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointment_id: appointmentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to cancel appointment');
       fetchAppointments(); // Refresh
     } catch (err) {
       console.error('Cancel appointment failed:', err);

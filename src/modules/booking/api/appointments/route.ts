@@ -83,6 +83,58 @@ export async function POST(request: Request) {
       supabase
     );
 
+    // 5. Dispatch the booking_created automation trigger
+    try {
+      const { runAutomationsForTrigger } = await import('@/lib/automations/engine');
+      
+      // Resolve active conversation ID for this contact
+      let resolvedConversationId = conversation_id || null;
+      if (!resolvedConversationId) {
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('contact_id', contact_id)
+          .eq('account_id', accountId)
+          .limit(1)
+          .maybeSingle();
+        resolvedConversationId = conv?.id || null;
+      }
+
+      // Fetch provider, service, and contact details for string interpolation in triggers
+      const [provResult, servResult, contactResult] = await Promise.all([
+        supabase.from('booking_providers').select('name').eq('id', provider_id).single(),
+        supabase.from('booking_services').select('name').eq('id', service_id).single(),
+        supabase.from('contacts').select('name').eq('id', contact_id).single()
+      ]);
+
+      const providerName = provResult.data?.name || 'Provider';
+      const serviceName = servResult.data?.name || 'Service';
+      const contactName = contactResult.data?.name || 'Customer';
+      const startTimeFormatted = new Date(appointment.start_time).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      runAutomationsForTrigger({
+        accountId,
+        triggerType: 'booking_created' as any,
+        contactId: contact_id,
+        context: {
+          conversation_id: resolvedConversationId || undefined,
+          vars: {
+            booking_start_time: startTimeFormatted,
+            provider_name: providerName,
+            service_name: serviceName,
+            contact_name: contactName,
+          }
+        }
+      }).catch(err => console.error('[booking-api] Failed to run automations:', err));
+    } catch (err) {
+      console.error('[booking-api] Automation dispatch error:', err);
+    }
+
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -98,6 +150,115 @@ export async function POST(request: Request) {
     }
 
     console.error('[booking-api] POST appointment failed:', err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  // 1. Role validation - Cancelling appointments requires at least an agent role
+  try {
+    await requireRole('agent');
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+
+  try {
+    const body = await request.json().catch(() => null);
+    if (!body || !body.appointment_id) {
+      return NextResponse.json({ error: 'appointment_id is required.' }, { status: 400 });
+    }
+
+    const { appointment_id } = body;
+
+    // Resolve user authenticated context
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Resolve user tenancy account
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_id')
+      .eq('user_id', user.id)
+      .single();
+
+    const accountId = profile?.account_id as string | undefined;
+    if (!accountId) {
+      return NextResponse.json(
+        { error: 'Your profile is not linked to a tenant account.' },
+        { status: 403 }
+      );
+    }
+
+    // Fetch details of this appointment before cancelling to supply context variables
+    const { data: appt } = await supabase
+      .from('booking_appointments')
+      .select(`
+        start_time,
+        contact_id,
+        conversation_id,
+        provider:booking_providers(name),
+        service:booking_services(name),
+        contact:contacts(name)
+      `)
+      .eq('id', appointment_id)
+      .eq('account_id', accountId)
+      .single();
+
+    if (!appt) {
+      return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 });
+    }
+
+    // Update appointment status to cancelled
+    const { error: updateErr } = await supabase
+      .from('booking_appointments')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', appointment_id)
+      .eq('account_id', accountId);
+
+    if (updateErr) throw updateErr;
+
+    // Dispatch the booking_cancelled automation trigger
+    try {
+      const { runAutomationsForTrigger } = await import('@/lib/automations/engine');
+      
+      const providerName = (appt.provider as any)?.name || 'Provider';
+      const serviceName = (appt.service as any)?.name || 'Service';
+      const contactName = (appt.contact as any)?.name || 'Customer';
+      const startTimeFormatted = new Date(appt.start_time).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      runAutomationsForTrigger({
+        accountId,
+        triggerType: 'booking_cancelled' as any,
+        contactId: appt.contact_id,
+        context: {
+          conversation_id: appt.conversation_id || undefined,
+          vars: {
+            booking_start_time: startTimeFormatted,
+            provider_name: providerName,
+            service_name: serviceName,
+            contact_name: contactName,
+          }
+        }
+      }).catch(err => console.error('[booking-api] Failed to run cancellation automations:', err));
+    } catch (err) {
+      console.error('[booking-api] Cancellation automation dispatch error:', err);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[booking-api] PATCH cancellation failed:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
