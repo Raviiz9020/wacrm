@@ -911,7 +911,9 @@ async function processMessage(
           console.log(`[booking-webhook] Dispatched Today/Tomorrow day selector to ${contactRecord.phone}`);
         } else {
           // Determine the target date based on selection
-          const now = new Date();
+          const BUSINESS_TIMEZONE = 'Asia/Kolkata';
+          const nowUTC = new Date();
+          const now = new Date(nowUTC.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
           const targetDate = new Date(now);
           let dayLabel = 'today';
           

@@ -177,14 +177,13 @@ export async function getAvailableSlots(
     throw new Error(`Error fetching existing appointments: ${apptErr.message}`);
   }
 
+  const BUSINESS_TIMEZONE = 'Asia/Kolkata';
+
   // Helper to parse database timestamptz back to local time components (HH:MM:SS)
   // this is safe because the slot query dates match the appointment query dates
   const parseLocalTimeFromISO = (isoStr: string): string => {
     const date = new Date(isoStr);
-    const h = date.getHours();
-    const m = date.getMinutes();
-    const s = date.getSeconds();
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return date.toLocaleTimeString('en-US', { timeZone: BUSINESS_TIMEZONE, hour12: false });
   };
 
   // Convert existing appointments to local minute ranges
@@ -199,11 +198,12 @@ export async function getAvailableSlots(
 
   // 6. Filter slots that overlap with existing appointments OR are in the past (if date is today)
   const now = new Date();
-  const y = now.getFullYear();
-  const mon = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+  const nowInBusinessTime = new Date(now.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
+  const y = nowInBusinessTime.getFullYear();
+  const mon = String(nowInBusinessTime.getMonth() + 1).padStart(2, '0');
+  const d = String(nowInBusinessTime.getDate()).padStart(2, '0');
   const todayDateStr = `${y}-${mon}-${d}`;
-  const nowInMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowInMinutes = nowInBusinessTime.getHours() * 60 + nowInBusinessTime.getMinutes();
 
   return potentialSlots.filter(slot => {
     const slotStartMin = timeToMinutes(slot.start_time);

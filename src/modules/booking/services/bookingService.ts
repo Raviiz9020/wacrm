@@ -23,17 +23,16 @@ function addMinutesToTime(timeStr: string, minutes: number): string {
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}:00`;
 }
 
+const BUSINESS_TIMEZONE_OFFSET = "+05:30"; // IST
+
 /**
  * Converts local date and time strings (e.g. '2026-08-15' and '09:00:00')
- * into a UTC ISO string, assuming the server/system timezone representation.
+ * into a UTC ISO string, using the fixed business timezone offset.
  */
 function toUTCISOString(dateStr: string, timeStr: string): string {
-  // Parse elements locally to build date object
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const [h, m, s] = timeStr.split(':').map(Number);
-  // Create a local Date object in the system timezone
-  const localDate = new Date(year, month - 1, day, h, m, s || 0);
-  return localDate.toISOString();
+  // Construct ISO string with offset and parse to Date to get correct UTC
+  const isoWithOffset = `${dateStr}T${timeStr}${BUSINESS_TIMEZONE_OFFSET}`;
+  return new Date(isoWithOffset).toISOString();
 }
 
 /**
