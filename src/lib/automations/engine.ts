@@ -639,7 +639,9 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
     if (!replyId || !Array.isArray(cfg?.reply_ids) || cfg.reply_ids.length === 0) {
       return false
     }
-    return cfg.reply_ids.includes(replyId)
+    return cfg.reply_ids.some(id =>
+      id.endsWith('*') ? replyId.startsWith(id.slice(0, -1)) : id === replyId
+    )
   }
 
   return true

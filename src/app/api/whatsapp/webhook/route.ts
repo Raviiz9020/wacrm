@@ -930,24 +930,47 @@ async function processMessage(
           const availableSlots = await getAvailableSlots(accountId, provider.id, service.id, targetDateStr, supabaseAdmin());
 
           if (availableSlots.length > 0) {
-            const slotsToSend = availableSlots.slice(0, 3);
-            const buttons = slotsToSend.map(slot => ({
-              id: `book:${provider.id}:${service.id}:${targetDateStr}:${slot.start_time}`,
-              title: slot.formatted_time.slice(0, 20),
-            }));
+            const slotsToSend = availableSlots.slice(0, 10);
+            
+            if (slotsToSend.length <= 3) {
+              const buttons = slotsToSend.map(slot => ({
+                id: `book:${provider.id}:${service.id}:${targetDateStr}:${slot.start_time}`,
+                title: slot.formatted_time.slice(0, 20),
+              }));
 
-            const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
-            await engineSendInteractiveButtons({
-              accountId,
-              userId: configOwnerUserId,
-              conversationId: conversation.id,
-              contactId: contactRecord.id,
-              bodyText: `Here are the available slots for ${dayLabel} (${targetDateStr}). Tap one to confirm:`,
-              buttons,
-            });
+              const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+              await engineSendInteractiveButtons({
+                accountId,
+                userId: configOwnerUserId,
+                conversationId: conversation.id,
+                contactId: contactRecord.id,
+                bodyText: `Here are the available slots for ${dayLabel} (${targetDateStr}). Tap one to confirm:`,
+                buttons,
+              });
+            } else {
+              const { engineSendInteractiveList } = await import('@/lib/flows/meta-send');
+              await engineSendInteractiveList({
+                accountId,
+                userId: configOwnerUserId,
+                conversationId: conversation.id,
+                contactId: contactRecord.id,
+                bodyText: `Here are the available slots for ${dayLabel} (${targetDateStr}). Tap below to choose a time:`,
+                buttonLabel: "Select a Time",
+                sections: [
+                  {
+                    title: "Available Times",
+                    rows: slotsToSend.map(slot => ({
+                      id: `book:${provider.id}:${service.id}:${targetDateStr}:${slot.start_time}`,
+                      title: slot.formatted_time.slice(0, 24),
+                      description: `Book for ${slot.formatted_time}`,
+                    })),
+                  },
+                ],
+              });
+            }
             
             bookingSlotsHandled = true;
-            console.log(`[booking-webhook] Automatically dispatched ${dayLabel}'s slot buttons to ${contactRecord.phone}`);
+            console.log(`[booking-webhook] Automatically dispatched ${dayLabel}'s slots to ${contactRecord.phone}`);
           } else {
             // Send text message stating no slots are available for the day
             const { engineSendText } = await import('@/lib/flows/meta-send');

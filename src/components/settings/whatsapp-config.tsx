@@ -89,10 +89,8 @@ export function WhatsAppConfig() {
   const [registrationProbe, setRegistrationProbe] =
     useState<RegistrationProbe | null>(null);
 
-  const webhookUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/api/whatsapp/webhook`
-      : '';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  const webhookUrl = siteUrl ? `${siteUrl}/api/whatsapp/webhook` : '';
 
   const fetchConfig = useCallback(async (acctId: string) => {
     setLoading(true);
@@ -794,9 +792,9 @@ export function WhatsAppConfig() {
                 <AccordionContent className="text-muted-foreground">
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>{t('step3_1')}</li>
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_2') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_3') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_4') }} />
+                    <li dangerouslySetInnerHTML={{ __html: t.raw('step3_2') }} />
+                    <li dangerouslySetInnerHTML={{ __html: t.raw('step3_3') }} />
+                    <li dangerouslySetInnerHTML={{ __html: t.raw('step3_4') }} />
                   </ol>
                 </AccordionContent>
               </AccordionItem>
@@ -812,8 +810,8 @@ export function WhatsAppConfig() {
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>{t('step4_1')}</li>
                     <li>{t('step4_2')}</li>
-                    <li dangerouslySetInnerHTML={{ __html: t('step4_3') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step4_4') }} />
+                    <li dangerouslySetInnerHTML={{ __html: t.raw('step4_3') }} />
+                    <li dangerouslySetInnerHTML={{ __html: t.raw('step4_4') }} />
                     <li>{t('step4_5')}</li>
                   </ol>
                 </AccordionContent>

@@ -58,7 +58,8 @@ END $$;
 -- ACCOUNTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
   name TEXT NOT NULL,
   -- owner_user_id is denormalised for fast "is this user the owner of
   -- their account" reads and for the one-account-per-user invariant
