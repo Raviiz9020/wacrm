@@ -31,9 +31,9 @@ function toUTCISOString(dateStr: string, timeStr: string): string {
   // Parse elements locally to build date object
   const [year, month, day] = dateStr.split('-').map(Number);
   const [h, m, s] = timeStr.split(':').map(Number);
-  // Using Date.UTC to get absolute UTC representation
-  const utcDate = new Date(Date.UTC(year, month - 1, day, h, m, s || 0));
-  return utcDate.toISOString();
+  // Create a local Date object in the system timezone
+  const localDate = new Date(year, month - 1, day, h, m, s || 0);
+  return localDate.toISOString();
 }
 
 /**

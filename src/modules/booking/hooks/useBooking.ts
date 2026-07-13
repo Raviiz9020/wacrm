@@ -143,6 +143,7 @@ export function useBooking() {
           duration_minutes: durationMinutes,
           price: price || null,
           description: description || null,
+          currency: 'INR',
         })
         .select()
         .single();
@@ -290,6 +291,95 @@ export function useBooking() {
     }
   };
 
+  const deleteProvider = async (providerId: string) => {
+    if (!account?.id) return;
+    try {
+      const { error } = await supabase
+        .from('booking_providers')
+        .delete()
+        .eq('id', providerId)
+        .eq('account_id', account.id);
+      if (error) throw error;
+      setProviders(prev => prev.filter(p => p.id !== providerId));
+    } catch (err) {
+      console.error('Delete provider failed:', err);
+      throw err;
+    }
+  };
+
+  const updateProvider = async (providerId: string, name: string, description?: string, isActive?: boolean) => {
+    if (!account?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('booking_providers')
+        .update({
+          name,
+          description: description || null,
+          is_active: isActive !== undefined ? isActive : true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', providerId)
+        .eq('account_id', account.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setProviders(prev => prev.map(p => p.id === providerId ? data : p));
+      return data;
+    } catch (err) {
+      console.error('Update provider failed:', err);
+      throw err;
+    }
+  };
+
+  const deleteService = async (serviceId: string) => {
+    if (!account?.id) return;
+    try {
+      const { error } = await supabase
+        .from('booking_services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('account_id', account.id);
+      if (error) throw error;
+      setServices(prev => prev.filter(s => s.id !== serviceId));
+    } catch (err) {
+      console.error('Delete service failed:', err);
+      throw err;
+    }
+  };
+
+  const updateService = async (
+    serviceId: string,
+    name: string,
+    durationMinutes: number,
+    price?: number,
+    description?: string,
+    isActive?: boolean
+  ) => {
+    if (!account?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('booking_services')
+        .update({
+          name,
+          duration_minutes: durationMinutes,
+          price: price || null,
+          description: description || null,
+          is_active: isActive !== undefined ? isActive : true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', serviceId)
+        .eq('account_id', account.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setServices(prev => prev.map(s => s.id === serviceId ? data : s));
+      return data;
+    } catch (err) {
+      console.error('Update service failed:', err);
+      throw err;
+    }
+  };
+
   return {
     providers,
     services,
@@ -304,6 +394,10 @@ export function useBooking() {
     getSlots,
     bookAppointment,
     cancel,
+    deleteProvider,
+    updateProvider,
+    deleteService,
+    updateService,
     refreshAppointments: fetchAppointments,
   };
 }

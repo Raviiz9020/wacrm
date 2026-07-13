@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2 } from "lucide-react";
 import { useBooking, type Provider, type Service, type Appointment } from "../hooks/useBooking"; // corrected hook path
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,10 @@ export function BookingDashboard() {
     getSlots,
     bookAppointment,
     cancel,
+    deleteProvider,
+    updateProvider,
+    deleteService,
+    updateService,
   } = useBooking();
 
   const supabase = createClient();
@@ -39,6 +43,21 @@ export function BookingDashboard() {
   // Local state
   const [activeTab, setActiveTab] = useState("appointments");
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([]);
+  
+  // Edit States
+  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  
+  // Edit form inputs
+  const [editProvName, setEditProvName] = useState("");
+  const [editProvDesc, setEditProvDesc] = useState("");
+  const [editProvActive, setEditProvActive] = useState(true);
+
+  const [editServName, setEditServName] = useState("");
+  const [editServDuration, setEditServDuration] = useState(30);
+  const [editServPrice, setEditServPrice] = useState("");
+  const [editServDesc, setEditServDesc] = useState("");
+  const [editServActive, setEditServActive] = useState(true);
   
   // Dialog Open States
   const [isBookOpen, setIsBookOpen] = useState(false);
@@ -160,6 +179,26 @@ export function BookingDashboard() {
     }
   };
 
+  const handleEditProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProvider || !editProvName) return;
+    try {
+      await updateProvider(editingProvider.id, editProvName, editProvDesc, editProvActive);
+      setEditingProvider(null);
+    } catch (err) {
+      alert("Failed to update resource provider.");
+    }
+  };
+
+  const handleDeleteProvider = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this provider? All their weekly schedules and overrides will be lost.")) return;
+    try {
+      await deleteProvider(id);
+    } catch (err) {
+      alert("Failed to delete provider.");
+    }
+  };
+
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServName || !newServDuration) return;
@@ -173,6 +212,27 @@ export function BookingDashboard() {
       setIsServiceOpen(false);
     } catch (err) {
       alert("Failed to create service.");
+    }
+  };
+
+  const handleEditService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingService || !editServName || !editServDuration) return;
+    try {
+      const price = editServPrice ? parseFloat(editServPrice) : undefined;
+      await updateService(editingService.id, editServName, editServDuration, price, editServDesc, editServActive);
+      setEditingService(null);
+    } catch (err) {
+      alert("Failed to update service.");
+    }
+  };
+
+  const handleDeleteService = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this service?")) return;
+    try {
+      await deleteService(id);
+    } catch (err) {
+      alert("Failed to delete service.");
     }
   };
 
@@ -502,10 +562,32 @@ export function BookingDashboard() {
               </div>
             ) : (
               providers.map(p => (
-                <Card key={p.id} className="border-border bg-card hover:bg-muted/10 transition-colors">
+                <Card key={p.id} className="border-border bg-card hover:bg-muted/10 transition-colors relative group">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-semibold">{p.name}</CardTitle>
-                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          setEditingProvider(p);
+                          setEditProvName(p.name);
+                          setEditProvDesc(p.description || "");
+                          setEditProvActive(p.is_active);
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDeleteProvider(p.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-rose-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">{p.description || "No description set"}</p>
@@ -559,7 +641,7 @@ export function BookingDashboard() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="serv_price">Price (USD)</Label>
+                      <Label htmlFor="serv_price">Price (INR)</Label>
                       <Input
                         type="number"
                         id="serv_price"
@@ -595,16 +677,43 @@ export function BookingDashboard() {
               </div>
             ) : (
               services.map(s => (
-                <Card key={s.id} className="border-border bg-card hover:bg-muted/10 transition-colors">
+                <Card key={s.id} className="border-border bg-card hover:bg-muted/10 transition-colors relative group">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-semibold">{s.name}</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          setEditingService(s);
+                          setEditServName(s.name);
+                          setEditServDuration(s.duration_minutes);
+                          setEditServPrice(s.price ? String(s.price) : "");
+                          setEditServDesc(s.description || "");
+                          setEditServActive(s.is_active);
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDeleteService(s.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-rose-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground mb-3">{s.description || "No description set"}</p>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{s.duration_minutes} mins</Badge>
-                      {s.price && <Badge variant="outline" className="border-primary/20 text-primary">${s.price}</Badge>}
+                      {s.price && <Badge variant="outline" className="border-primary/20 text-primary">₹{s.price}</Badge>}
+                      <Badge variant="outline" className={s.is_active ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : ""}>
+                        {s.is_active ? "Active" : "Inactive"}
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -754,6 +863,117 @@ export function BookingDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Provider Modal */}
+      {editingProvider && (
+        <Dialog open={!!editingProvider} onOpenChange={(open) => !open && setEditingProvider(null)}>
+          <DialogContent className="border-border bg-card">
+            <form onSubmit={handleEditProvider}>
+              <DialogHeader>
+                <DialogTitle>Edit Provider</DialogTitle>
+                <DialogDescription>Modify settings for {editingProvider.name}.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_prov_name">Provider Name</Label>
+                  <Input
+                    id="edit_prov_name"
+                    className="border-border"
+                    value={editProvName}
+                    onChange={e => setEditProvName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_prov_desc">Description / Specialty</Label>
+                  <Input
+                    id="edit_prov_desc"
+                    className="border-border"
+                    value={editProvDesc}
+                    onChange={e => setEditProvDesc(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 border border-border rounded bg-muted/10 mt-2">
+                  <span className="text-xs font-semibold">Active Status</span>
+                  <Switch
+                    checked={editProvActive}
+                    onCheckedChange={setEditProvActive}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Service Modal */}
+      {editingService && (
+        <Dialog open={!!editingService} onOpenChange={(open) => !open && setEditingService(null)}>
+          <DialogContent className="border-border bg-card">
+            <form onSubmit={handleEditService}>
+              <DialogHeader>
+                <DialogTitle>Edit Service</DialogTitle>
+                <DialogDescription>Modify settings for {editingService.name}.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_serv_name">Service Name</Label>
+                  <Input
+                    id="edit_serv_name"
+                    className="border-border"
+                    value={editServName}
+                    onChange={e => setEditServName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_serv_dur">Duration (Minutes)</Label>
+                  <Input
+                    type="number"
+                    id="edit_serv_dur"
+                    className="border-border"
+                    value={editServDuration}
+                    onChange={e => setEditServDuration(parseInt(e.target.value))}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_serv_price">Price (INR)</Label>
+                  <Input
+                    type="number"
+                    id="edit_serv_price"
+                    className="border-border"
+                    value={editServPrice}
+                    onChange={e => setEditServPrice(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_serv_desc">Description</Label>
+                  <Input
+                    id="edit_serv_desc"
+                    className="border-border"
+                    value={editServDesc}
+                    onChange={e => setEditServDesc(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 border border-border rounded bg-muted/10 mt-2">
+                  <span className="text-xs font-semibold">Active Status</span>
+                  <Switch
+                    checked={editServActive}
+                    onCheckedChange={setEditServActive}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

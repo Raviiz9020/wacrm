@@ -181,9 +181,9 @@ export async function getAvailableSlots(
   // this is safe because the slot query dates match the appointment query dates
   const parseLocalTimeFromISO = (isoStr: string): string => {
     const date = new Date(isoStr);
-    const h = date.getUTCHours();
-    const m = date.getUTCMinutes();
-    const s = date.getUTCSeconds();
+    const h = date.getHours();
+    const m = date.getMinutes();
+    const s = date.getSeconds();
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
@@ -198,8 +198,12 @@ export async function getAvailableSlots(
   });
 
   // 6. Filter slots that overlap with existing appointments OR are in the past (if date is today)
-  const todayDateStr = new Date().toISOString().split('T')[0];
-  const nowInMinutes = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+  const now = new Date();
+  const y = now.getFullYear();
+  const mon = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const todayDateStr = `${y}-${mon}-${d}`;
+  const nowInMinutes = now.getHours() * 60 + now.getMinutes();
 
   return potentialSlots.filter(slot => {
     const slotStartMin = timeToMinutes(slot.start_time);
