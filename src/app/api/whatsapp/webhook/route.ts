@@ -764,7 +764,8 @@ async function processMessage(
     try {
       const parts = interactiveReplyId.split(':');
       if (parts.length >= 5) {
-        const [_, providerId, serviceId, dateStr, startTimeStr] = parts;
+        const [_, providerId, serviceId, dateStr] = parts;
+        const startTimeStr = parts.slice(4).join(':');
         
         // Dynamic import to keep modular boundaries clean
         const { createAppointment } = await import('@/modules/booking/services/bookingService');
@@ -817,6 +818,126 @@ async function processMessage(
       }
     } catch (err) {
       console.error('[booking-webhook] Auto-booking failed:', err);
+    }
+  }
+
+  // 2. Intercept "book_appointment" clicks or keywords to automatically reply with day options or slot buttons
+  let bookingSlotsHandled = false;
+  const cleanInbound = inboundText.trim().toLowerCase();
+  const cleanReplyId = (interactiveReplyId || '').toLowerCase();
+
+  const isDaySelectTrigger =
+    cleanReplyId === 'book_appointment' ||
+    cleanInbound === 'book appointment' ||
+    cleanInbound === 'book appointme' ||
+    cleanInbound === 'book' ||
+    cleanInbound === 'booking' ||
+    cleanInbound === 'slots';
+
+  const isTodayTrigger = cleanReplyId === 'book_today' || cleanInbound === 'today';
+  const isTomorrowTrigger = cleanReplyId === 'book_tomorrow' || cleanInbound === 'tomorrow';
+
+  if (isDaySelectTrigger || isTodayTrigger || isTomorrowTrigger) {
+    try {
+      // Fetch the first active provider and service for this account
+      const { data: provider } = await supabaseAdmin()
+        .from('booking_providers')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      const { data: service } = await supabaseAdmin()
+        .from('booking_services')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (provider && service) {
+        if (isDaySelectTrigger) {
+          // Send the Today vs Tomorrow buttons
+          const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+          await engineSendInteractiveButtons({
+            accountId,
+            userId: configOwnerUserId,
+            conversationId: conversation.id,
+            contactId: contactRecord.id,
+            bodyText: 'Please select a day for your appointment:',
+            buttons: [
+              { id: 'book_today', title: 'Today' },
+              { id: 'book_tomorrow', title: 'Tomorrow' },
+            ],
+          });
+          bookingSlotsHandled = true;
+          console.log(`[booking-webhook] Dispatched Today/Tomorrow day selector to ${contactRecord.phone}`);
+        } else {
+          // Determine the target date based on selection
+          const now = new Date();
+          const targetDate = new Date(now);
+          let dayLabel = 'today';
+          
+          if (isTomorrowTrigger) {
+            targetDate.setDate(now.getDate() + 1);
+            dayLabel = 'tomorrow';
+          }
+          
+          const y = targetDate.getFullYear();
+          const mon = String(targetDate.getMonth() + 1).padStart(2, '0');
+          const d = String(targetDate.getDate()).padStart(2, '0');
+          const targetDateStr = `${y}-${mon}-${d}`;
+
+          // Get slots
+          const { getAvailableSlots } = await import('@/modules/booking/services/slotGenerator');
+          const availableSlots = await getAvailableSlots(accountId, provider.id, service.id, targetDateStr, supabaseAdmin());
+
+          if (availableSlots.length > 0) {
+            const slotsToSend = availableSlots.slice(0, 3);
+            const buttons = slotsToSend.map(slot => ({
+              id: `book:${provider.id}:${service.id}:${targetDateStr}:${slot.start_time}`,
+              title: slot.formatted_time.slice(0, 20),
+            }));
+
+            const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+            await engineSendInteractiveButtons({
+              accountId,
+              userId: configOwnerUserId,
+              conversationId: conversation.id,
+              contactId: contactRecord.id,
+              bodyText: `Here are the available slots for ${dayLabel} (${targetDateStr}). Tap one to confirm:`,
+              buttons,
+            });
+            
+            bookingSlotsHandled = true;
+            console.log(`[booking-webhook] Automatically dispatched ${dayLabel}'s slot buttons to ${contactRecord.phone}`);
+          } else {
+            // Send text message stating no slots are available for the day
+            const { engineSendText } = await import('@/lib/flows/meta-send');
+            const { decrypt } = await import('@/lib/flows/meta-send');
+            const { data: config } = await supabaseAdmin()
+              .from('whatsapp_config')
+              .select('access_token, phone_number_id')
+              .eq('account_id', accountId)
+              .single();
+
+            if (config && contactRecord.phone) {
+              const accessToken = decrypt(config.access_token);
+              await engineSendText({
+                accessToken,
+                phoneNumberId: config.phone_number_id,
+                to: contactRecord.phone,
+                text: `Sorry, there are no available slots remaining for ${dayLabel}. Please try another day.`,
+                meta_message_id: null,
+              });
+              bookingSlotsHandled = true;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[booking-webhook] Automatic slots/day dispatch failed:', err);
     }
   }
 
@@ -875,7 +996,7 @@ async function processMessage(
   // the account has enabled it. Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  if (!flowConsumed && !bookingSlotsHandled && !interactiveReplyId && inboundText.trim()) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
