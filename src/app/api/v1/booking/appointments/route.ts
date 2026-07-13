@@ -1,1 +1,1 @@
-export { POST, PATCH } from '@/modules/booking/api/appointments/route';
+export { POST, PATCH, DELETE } from '@/modules/booking/api/appointments/route';
