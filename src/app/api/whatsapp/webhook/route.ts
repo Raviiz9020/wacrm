@@ -987,7 +987,7 @@ async function processMessage(
         });
         bookingSlotsHandled = true; // Prevents AI from taking over
       } else {
-        const buttons = activeAppts.map(appt => {
+        const buttons = activeAppts.map((appt: any) => {
           const dateObj = new Date(appt.start_time);
           const timeStr = dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
           return {
