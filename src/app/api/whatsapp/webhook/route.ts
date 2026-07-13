@@ -800,21 +800,26 @@ async function processMessage(
           .maybeSingle();
 
         if (apptInfo) {
+          const BUSINESS_TIMEZONE = 'Asia/Kolkata';
           const providerName = (apptInfo.provider as any)?.name || 'Provider';
           const serviceName = (apptInfo.service as any)?.name || 'Service';
-          const startTime = new Date(apptInfo.start_time).toLocaleString('en-US', {
+          const startUtc = new Date(apptInfo.start_time);
+
+          const startTime = startUtc.toLocaleString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit'
           });
-          const startUtc = new Date(apptInfo.start_time);
           const apptDate = startUtc.toLocaleDateString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             month: 'short',
             day: 'numeric',
             year: 'numeric'
           });
           const apptTime = startUtc.toLocaleTimeString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             hour: 'numeric',
             minute: '2-digit'
           });
