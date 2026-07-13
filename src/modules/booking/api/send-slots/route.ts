@@ -68,32 +68,13 @@ export async function POST(request: Request) {
     if (availableSlots.length === 0) {
       // Send a plain text message letting the user know no slots are open
       const { engineSendText } = await import('@/lib/flows/meta-send');
-      const { data: whatsappConfig } = await dbAdmin
-        .from('whatsapp_config')
-        .select('access_token, phone_number_id')
-        .eq('account_id', accountId)
-        .single();
-
-      if (whatsappConfig) {
-        const { decrypt } = await import('@/lib/whatsapp/encryption');
-        // Find E164 phone number
-        const { data: contact } = await dbAdmin
-          .from('contacts')
-          .select('phone')
-          .eq('id', contact_id)
-          .single();
-
-        if (contact?.phone) {
-          const accessToken = decrypt(whatsappConfig.access_token);
-          await engineSendText({
-            accessToken,
-            phoneNumberId: whatsappConfig.phone_number_id,
-            to: contact.phone,
-            text: `Sorry, there are no available appointments remaining for Dr. Sarah on ${date}.`,
-            meta_message_id: null,
-          });
-        }
-      }
+      await engineSendText({
+        accountId,
+        userId: user.id,
+        conversationId: conv.id,
+        contactId: contact_id,
+        text: `Sorry, there are no available appointments remaining for Dr. Sarah on ${date}.`,
+      });
       return NextResponse.json({ success: true, message: 'No slots available, sent text explanation.' });
     }
 

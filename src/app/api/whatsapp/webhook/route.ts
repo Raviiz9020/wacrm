@@ -839,6 +839,27 @@ async function processMessage(
 
   if (isDaySelectTrigger || isTodayTrigger || isTomorrowTrigger) {
     try {
+      // 1. Enforce Booking Limit: Only 1 active appointment allowed.
+      const { data: activeAppt } = await supabaseAdmin()
+        .from('booking_appointments')
+        .select('id')
+        .eq('contact_id', contactRecord.id)
+        .eq('status', 'confirmed')
+        .limit(1)
+        .maybeSingle();
+
+      if (activeAppt) {
+        const { engineSendText } = await import('@/lib/flows/meta-send');
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId: conversation.id,
+          contactId: contactRecord.id,
+          text: 'You already have an active appointment scheduled. Please cancel it first if you wish to rebook.',
+        });
+        bookingSlotsHandled = true;
+        console.log(`[booking-webhook] Prevented booking due to active appointment for ${contactRecord.phone}`);
+      } else {
       // Fetch the first active provider and service for this account
       const { data: provider } = await supabaseAdmin()
         .from('booking_providers')
@@ -915,29 +936,123 @@ async function processMessage(
           } else {
             // Send text message stating no slots are available for the day
             const { engineSendText } = await import('@/lib/flows/meta-send');
-            const { decrypt } = await import('@/lib/whatsapp/encryption');
-            const { data: config } = await supabaseAdmin()
-              .from('whatsapp_config')
-              .select('access_token, phone_number_id')
-              .eq('account_id', accountId)
-              .single();
-
-            if (config && contactRecord.phone) {
-              const accessToken = decrypt(config.access_token);
-              await engineSendText({
-                accessToken,
-                phoneNumberId: config.phone_number_id,
-                to: contactRecord.phone,
-                text: `Sorry, there are no available slots remaining for ${dayLabel}. Please try another day.`,
-                meta_message_id: null,
-              });
-              bookingSlotsHandled = true;
-            }
+            await engineSendText({
+              accountId,
+              userId: configOwnerUserId,
+              conversationId: conversation.id,
+              contactId: contactRecord.id,
+              text: `Sorry, there are no available slots remaining for ${dayLabel}. Please try another day.`,
+            });
+            bookingSlotsHandled = true;
           }
         }
       }
+      } // close the else block for activeAppt check
     } catch (err) {
       console.error('[booking-webhook] Automatic slots/day dispatch failed:', err);
+    }
+  }
+
+  // 3. Intercept cancellation flows
+  let bookingCancelled = false;
+  let bookingCancelledVars: Record<string, unknown> | undefined = undefined;
+
+  const isCancelSelectTrigger = cleanReplyId === 'cancel_appointment' || cleanInbound === 'cancel appointment' || cleanInbound === 'cancel' || cleanInbound === 'cancel booking';
+
+  if (isCancelSelectTrigger) {
+    try {
+      // Fetch up to 3 active appointments for this contact
+      const { data: activeAppts } = await supabaseAdmin()
+        .from('booking_appointments')
+        .select(`
+          id,
+          start_time,
+          provider:booking_providers(name),
+          service:booking_services(name)
+        `)
+        .eq('contact_id', contactRecord.id)
+        .eq('status', 'confirmed')
+        .order('start_time', { ascending: true })
+        .limit(3);
+
+      const { engineSendText, engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+
+      if (!activeAppts || activeAppts.length === 0) {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId: conversation.id,
+          contactId: contactRecord.id,
+          text: "You don't have any upcoming appointments to cancel.",
+        });
+        bookingSlotsHandled = true; // Prevents AI from taking over
+      } else {
+        const buttons = activeAppts.map(appt => {
+          const dateObj = new Date(appt.start_time);
+          const timeStr = dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+          return {
+            id: `cancel:${appt.id}`,
+            title: `Cancel ${timeStr}`.substring(0, 20),
+          };
+        });
+
+        await engineSendInteractiveButtons({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId: conversation.id,
+          contactId: contactRecord.id,
+          bodyText: 'Please select the appointment you wish to cancel:',
+          buttons,
+        });
+        bookingSlotsHandled = true;
+      }
+    } catch (err) {
+      console.error('[booking-webhook] Cancellation selection failed:', err);
+    }
+  }
+
+  // 4. Intercept cancellation confirmation tap
+  if (interactiveReplyId && interactiveReplyId.startsWith('cancel:')) {
+    try {
+      const appointmentId = interactiveReplyId.split(':')[1];
+      if (appointmentId) {
+        const { cancelAppointment } = await import('@/modules/booking/services/bookingService');
+        await cancelAppointment(accountId, appointmentId, supabaseAdmin());
+
+        bookingCancelled = true;
+        console.log(`[booking-webhook] Automatically cancelled slot ${appointmentId}`);
+
+        // Fetch details of this appointment to supply context variables for automation execution
+        const { data: apptInfo } = await supabaseAdmin()
+          .from('booking_appointments')
+          .select(`
+            start_time,
+            provider:booking_providers(name),
+            service:booking_services(name)
+          `)
+          .eq('id', appointmentId)
+          .maybeSingle();
+
+        if (apptInfo) {
+          const providerName = (apptInfo.provider as any)?.name || 'Provider';
+          const serviceName = (apptInfo.service as any)?.name || 'Service';
+          const startTime = new Date(apptInfo.start_time).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+
+          bookingCancelledVars = {
+            booking_start_time: startTime,
+            provider_name: providerName,
+            service_name: serviceName,
+            contact_name: contactRecord.name,
+          };
+        }
+      }
+    } catch (err) {
+      console.error('[booking-webhook] Auto-cancellation failed:', err);
     }
   }
 
@@ -948,6 +1063,7 @@ async function processMessage(
     | 'keyword_match'
     | 'interactive_reply'
     | 'booking_created'
+    | 'booking_cancelled'
   )[] = []
   // Content-level triggers are suppressed when a flow consumed the
   // message — see the comment block above.
@@ -973,6 +1089,10 @@ async function processMessage(
   if (bookingCreated) {
     automationTriggers.push('booking_created');
   }
+  
+  if (bookingCancelled) {
+    automationTriggers.push('booking_cancelled');
+  }
 
   for (const triggerType of automationTriggers) {
     runAutomationsForTrigger({
@@ -985,8 +1105,8 @@ async function processMessage(
         // Only set on interactive taps; drives the interactive_reply
         // trigger's exact-id match.
         interactive_reply_id: interactiveReplyId ?? undefined,
-        // Pass variables if this is the booking_created trigger
-        vars: triggerType === 'booking_created' ? bookingCreatedVars : undefined,
+        // Pass variables if this is the booking_created or booking_cancelled trigger
+        vars: triggerType === 'booking_created' ? bookingCreatedVars : triggerType === 'booking_cancelled' ? bookingCancelledVars : undefined,
       },
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
