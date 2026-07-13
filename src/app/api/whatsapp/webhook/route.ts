@@ -754,12 +754,78 @@ async function processMessage(
   // Fire-and-forget: a slow or failing automation must not block the
   // webhook's 200 OK response to Meta.
   const inboundText = contentText ?? message.text?.body ?? ''
+
+  // 1. Detect interactive replies using the book:* namespace
+  // Format: book:<providerId>:<serviceId>:<date>:<time>
+  let bookingCreated = false;
+  let bookingCreatedVars: Record<string, unknown> | undefined = undefined;
+
+  if (interactiveReplyId && interactiveReplyId.startsWith('book:')) {
+    try {
+      const parts = interactiveReplyId.split(':');
+      if (parts.length >= 5) {
+        const [_, providerId, serviceId, dateStr, startTimeStr] = parts;
+        
+        // Dynamic import to keep modular boundaries clean
+        const { createAppointment } = await import('@/modules/booking/services/bookingService');
+        
+        await createAppointment({
+          accountId,
+          providerId,
+          serviceId,
+          contactId: contactRecord.id,
+          conversationId: conversation.id,
+          dateStr,
+          startTimeStr,
+          notes: 'Booked dynamically via WhatsApp slot selection',
+        });
+        
+        bookingCreated = true;
+        console.log(`[booking-webhook] Automatically booked slot for provider ${providerId} on ${dateStr} ${startTimeStr}`);
+
+        // Fetch details of this appointment to supply context variables for automation execution
+        const { data: apptInfo } = await supabaseAdmin()
+          .from('booking_appointments')
+          .select(`
+            start_time,
+            provider:booking_providers(name),
+            service:booking_services(name)
+          `)
+          .eq('contact_id', contactRecord.id)
+          .eq('status', 'confirmed')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (apptInfo) {
+          const providerName = (apptInfo.provider as any)?.name || 'Provider';
+          const serviceName = (apptInfo.service as any)?.name || 'Service';
+          const startTime = new Date(apptInfo.start_time).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+
+          bookingCreatedVars = {
+            booking_start_time: startTime,
+            provider_name: providerName,
+            service_name: serviceName,
+          };
+        }
+      }
+    } catch (err) {
+      console.error('[booking-webhook] Auto-booking failed:', err);
+    }
+  }
+
   const automationTriggers: (
     | 'new_contact_created'
     | 'first_inbound_message'
     | 'new_message_received'
     | 'keyword_match'
     | 'interactive_reply'
+    | 'booking_created'
   )[] = []
   // Content-level triggers are suppressed when a flow consumed the
   // message — see the comment block above.
@@ -781,10 +847,15 @@ async function processMessage(
   // listens to only one trigger runs only when that trigger matches.
   if (contactOutcome.wasCreated) automationTriggers.unshift('new_contact_created')
   if (isFirstInboundMessage) automationTriggers.unshift('first_inbound_message')
+  
+  if (bookingCreated) {
+    automationTriggers.push('booking_created');
+  }
+
   for (const triggerType of automationTriggers) {
     runAutomationsForTrigger({
       accountId,
-      triggerType,
+      triggerType: triggerType as any,
       contactId: contactRecord.id,
       context: {
         message_text: inboundText,
@@ -792,6 +863,8 @@ async function processMessage(
         // Only set on interactive taps; drives the interactive_reply
         // trigger's exact-id match.
         interactive_reply_id: interactiveReplyId ?? undefined,
+        // Pass variables if this is the booking_created trigger
+        vars: triggerType === 'booking_created' ? bookingCreatedVars : undefined,
       },
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
