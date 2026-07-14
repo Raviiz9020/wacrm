@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { uploadAccountMedia, MEDIA_MAX_BYTES } from "@/lib/storage/upload-media";
 import { slugify, type BuilderNode } from "../shared";
 import { NextNodeRow, NodeKeySelect, TextRow } from "./fields";
@@ -651,13 +652,15 @@ function ConditionForm({
                 ? t("tagLabel")
                 : t("fieldLabel")}
           </label>
-          {subject === "tag" && tags.length > 0 ? (
+          {subject === "tag" ? (
             <Select
               value={cfg.subject_key ?? ""}
               onValueChange={(v) => onUpdateConfig({ subject_key: v })}
             >
               <SelectTrigger className="bg-muted">
-                <SelectValue placeholder="Pick a tag…" />
+                <SelectValue placeholder="Pick a tag…">
+                  {tags.find((tag) => tag.id === cfg.subject_key)?.name ?? (cfg.subject_key ? "Loading…" : "Pick a tag…")}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {tags.map((t) => (
@@ -799,30 +802,23 @@ function SetTagForm({
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">{t("tagLabel")}</label>
-          {tags.length > 0 ? (
-            <Select
-              value={cfg.tag_id ?? ""}
-              onValueChange={(v) => onUpdateConfig({ tag_id: v })}
-            >
-              <SelectTrigger className="bg-muted">
-                <SelectValue placeholder="Pick a tag…" />
-              </SelectTrigger>
-              <SelectContent>
-                {tags.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              value={cfg.tag_id ?? ""}
-              onChange={(e) => onUpdateConfig({ tag_id: e.target.value })}
-              placeholder={t("tagUuidPlaceholder")}
-              className="bg-muted font-mono text-xs"
-            />
-          )}
+          <Select
+            value={cfg.tag_id ?? ""}
+            onValueChange={(v) => onUpdateConfig({ tag_id: v })}
+          >
+            <SelectTrigger className="bg-muted">
+              <SelectValue placeholder="Pick a tag…">
+                {tags.find((tag) => tag.id === cfg.tag_id)?.name ?? (cfg.tag_id ? "Loading…" : "Pick a tag…")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {tags.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <NextNodeRow
@@ -845,14 +841,19 @@ function useUserTags(): UserTag[] {
   const [tags, setTags] = useState<UserTag[]>([]);
   useEffect(() => {
     let cancelled = false;
+    const supabase = createClient();
     (async () => {
       try {
-        const res = await fetch("/api/tags").catch(() => null);
-        if (!res || !res.ok) return;
-        const json = (await res.json()) as { tags?: UserTag[] };
-        if (!cancelled) setTags(json.tags ?? []);
-      } catch {
-        // Tags endpoint absent — caller falls back to raw input.
+        const { data, error } = await supabase
+          .from("tags")
+          .select("id, name, color")
+          .order("name");
+        if (error) throw error;
+        if (!cancelled && data) {
+          setTags(data as UserTag[]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch tags:", err);
       }
     })();
     return () => {
