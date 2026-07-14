@@ -1,0 +1,1 @@
+{"nodes": [{"id": "src_app_auth_login_page", "label": "Login Page", "file_type": "code", "source_file": "src/app/(auth)/login/page.tsx"}], "edges": [{"source": "src_app_auth_login_page", "target": "src_lib_supabase_client", "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "src/app/(auth)/login/page.tsx"}], "hyperedges": []}

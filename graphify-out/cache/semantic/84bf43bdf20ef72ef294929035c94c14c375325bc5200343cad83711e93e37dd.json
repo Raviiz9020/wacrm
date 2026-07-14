@@ -1,0 +1,1 @@
+{"nodes": [], "edges": [], "hyperedges": [{"id": "auth_flow", "label": "Authentication Flow", "nodes": ["src_app_auth_login_page", "src_app_auth_signup_page", "src_hooks_use_auth", "src_lib_supabase_client"], "relation": "participate_in", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "src/app/(auth)/layout.tsx"}]}

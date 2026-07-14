@@ -367,16 +367,24 @@ export async function POST(request: Request) {
     }
 
     if (existing) {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('whatsapp_config')
         .update(baseRow)
         .eq('account_id', accountId)
+        .select()
 
       if (updateError) {
         console.error('Error updating whatsapp_config:', updateError)
         return NextResponse.json(
           { error: 'Failed to update configuration' },
           { status: 500 }
+        )
+      }
+
+      if (!data || data.length === 0) {
+        return NextResponse.json(
+          { error: 'Permission denied. Only Admins or Owners can update the WhatsApp configuration.' },
+          { status: 403 }
         )
       }
     } else {
@@ -393,6 +401,12 @@ export async function POST(request: Request) {
         })
 
       if (insertError) {
+        if (insertError.code === '42501') {
+          return NextResponse.json(
+            { error: 'Permission denied. Only Admins or Owners can save the WhatsApp configuration.' },
+            { status: 403 }
+          )
+        }
         console.error('Error inserting whatsapp_config:', insertError)
         return NextResponse.json(
           { error: 'Failed to save configuration' },
@@ -459,16 +473,28 @@ export async function DELETE() {
       )
     }
 
-    const { error: deleteError } = await supabase
+    const { data, error: deleteError } = await supabase
       .from('whatsapp_config')
       .delete()
       .eq('account_id', accountId)
+      .select()
 
     if (deleteError) {
       console.error('Error deleting whatsapp_config:', deleteError)
       return NextResponse.json(
         { error: 'Failed to delete configuration' },
         { status: 500 }
+      )
+    }
+
+    if (!data || data.length === 0) {
+      // Row might not exist, or RLS blocked deletion. Since we already checked
+      // that the accountId exists, if 0 rows were deleted, it's either an RLS block
+      // or the config was already deleted (in which case 403 is fine because the 
+      // UI wouldn't show the reset button anyway if it wasn't there).
+      return NextResponse.json(
+        { error: 'Permission denied. Only Admins or Owners can reset the WhatsApp configuration.' },
+        { status: 403 }
       )
     }
 

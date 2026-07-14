@@ -1,0 +1,1 @@
+{"nodes": [{"id": "013_whatsapp_config_phone_number_id_unique_whatsapp_config", "label": "WhatsApp Config Table", "file_type": "code", "source_file": "supabase/migrations/013_whatsapp_config_phone_number_id_unique.sql"}], "edges": [], "hyperedges": []}

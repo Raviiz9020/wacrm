@@ -42,9 +42,9 @@ export function WhatsAppConfig() {
   // After multi-user, whatsapp_config is one-row-per-account, not
   // one-row-per-user. We pull `accountId` straight off the auth
   // context and key every read off it — so a teammate who just
-  // joined an account sees the inviter's saved config without
+  // just joined an account sees the inviter's saved config without
   // having to re-enter anything.
-  const { user, accountId, loading: authLoading, profileLoading } = useAuth();
+  const { user, accountId, loading: authLoading, profileLoading, canEditSettings } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -429,6 +429,20 @@ export function WhatsAppConfig() {
           </Alert>
         )}
 
+        {/* Read-Only Warning for Agents */}
+        {!canEditSettings && (
+          <Alert className="bg-blue-950/30 border-blue-700/50">
+            <div className="flex items-center gap-3">
+              <AlertTitle className="text-blue-200 mb-0 font-medium">
+                View Only
+              </AlertTitle>
+            </div>
+            <AlertDescription className="text-blue-200/80 mt-1">
+              You can view the current WhatsApp connection status, but only Admins and Owners can change the configuration.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Connection Status */}
         <Alert className="bg-card border-border">
           <div className="flex items-center gap-2">
@@ -567,7 +581,8 @@ export function WhatsAppConfig() {
                 placeholder="e.g. 100234567890123"
                 value={phoneNumberId}
                 onChange={(e) => setPhoneNumberId(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                disabled={!canEditSettings}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-70"
               />
             </div>
 
@@ -577,7 +592,8 @@ export function WhatsAppConfig() {
                 placeholder="e.g. 100234567890456"
                 value={wabaId}
                 onChange={(e) => setWabaId(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                disabled={!canEditSettings}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-70"
               />
             </div>
 
@@ -598,7 +614,8 @@ export function WhatsAppConfig() {
                       setTokenEdited(true);
                     }
                   }}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
+                  disabled={!canEditSettings}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10 disabled:opacity-70"
                 />
                 <button
                   type="button"
@@ -621,7 +638,8 @@ export function WhatsAppConfig() {
                 placeholder={t('webhookVerifyTokenPlaceholder')}
                 value={verifyToken}
                 onChange={(e) => setVerifyToken(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                disabled={!canEditSettings}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-70"
               />
               <p className="text-xs text-muted-foreground">
                 {t('webhookVerifyTokenHint')}
@@ -642,7 +660,8 @@ export function WhatsAppConfig() {
                 onChange={(e) =>
                   setPin(e.target.value.replace(/\D/g, '').slice(0, 6))
                 }
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground tracking-widest"
+                disabled={!canEditSettings}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground tracking-widest disabled:opacity-70"
               />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 <span dangerouslySetInnerHTML={{ __html: t('pinHint') }} />
@@ -685,7 +704,7 @@ export function WhatsAppConfig() {
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !canEditSettings}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {saving ? (
@@ -719,7 +738,7 @@ export function WhatsAppConfig() {
             <Button
               variant="outline"
               onClick={handleReset}
-              disabled={resetting}
+              disabled={resetting || !canEditSettings}
               className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
             >
               {resetting ? (

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "035_interactive_messages_quick_replies", "label": "Quick Replies Table", "file_type": "code", "source_file": "supabase/migrations/035_interactive_messages.sql"}], "edges": [], "hyperedges": []}

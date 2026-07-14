@@ -1,0 +1,1 @@
+{"nodes": [{"id": "014_message_templates_meta_integration_message_templates", "label": "Message Templates Table", "file_type": "code", "source_file": "supabase/migrations/014_message_templates_meta_integration.sql"}], "edges": [], "hyperedges": []}

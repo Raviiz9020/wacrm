@@ -1,0 +1,1 @@
+{"nodes": [{"id": "023_chat_media_chat_media_bucket", "label": "Chat Media Storage Bucket", "file_type": "code", "source_file": "supabase/migrations/023_chat_media.sql"}], "edges": [], "hyperedges": []}
