@@ -1,0 +1,178 @@
+{
+  "nodes": [
+    {
+      "id": "docs_add_ai_provider",
+      "label": "Adding a New AI Provider",
+      "file_type": "document",
+      "source_file": "docs/add-ai-provider.md"
+    },
+    {
+      "id": "supabase_migrations_040_add_gemini_provider",
+      "label": "Migration: Add Gemini Provider",
+      "file_type": "code",
+      "source_file": "supabase/migrations/040_add_gemini_provider.sql"
+    },
+    {
+      "id": "src_lib_ai_types_aiprovider",
+      "label": "AiProvider Type",
+      "file_type": "code",
+      "source_file": "src/lib/ai/types.ts"
+    },
+    {
+      "id": "src_lib_ai_defaults_ai_provider_default_model",
+      "label": "AI_PROVIDER_DEFAULT_MODEL",
+      "file_type": "code",
+      "source_file": "src/lib/ai/defaults.ts"
+    },
+    {
+      "id": "src_lib_ai_providers_gemini",
+      "label": "Gemini Provider Adapter",
+      "file_type": "code",
+      "source_file": "src/lib/ai/providers/gemini.ts"
+    },
+    {
+      "id": "src_lib_ai_generate_generatereply",
+      "label": "generateReply",
+      "file_type": "code",
+      "source_file": "src/lib/ai/generate.ts"
+    },
+    {
+      "id": "src_app_api_ai_config_route_post",
+      "label": "POST /api/ai/config",
+      "file_type": "code",
+      "source_file": "src/app/api/ai/config/route.ts"
+    },
+    {
+      "id": "src_app_api_ai_test_route_post",
+      "label": "POST /api/ai/test",
+      "file_type": "code",
+      "source_file": "src/app/api/ai/test/route.ts"
+    },
+    {
+      "id": "src_components_settings_ai_config",
+      "label": "AiConfig Component",
+      "file_type": "code",
+      "source_file": "src/components/settings/ai-config.tsx"
+    },
+    {
+      "id": "src_lib_flows_engine",
+      "label": "Flow Runner Engine",
+      "file_type": "code",
+      "source_file": "src/lib/flows/engine.ts"
+    },
+    {
+      "id": "src_components_flows_forms_node_config_form",
+      "label": "NodeConfigForm",
+      "file_type": "code",
+      "source_file": "src/components/flows/forms/node-config-form.tsx"
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs_add_ai_provider",
+      "target": "supabase_migrations_040_add_gemini_provider",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "docs_add_ai_provider",
+      "target": "src_lib_ai_types_aiprovider",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "docs_add_ai_provider",
+      "target": "src_lib_ai_defaults_ai_provider_default_model",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "docs_add_ai_provider",
+      "target": "src_lib_ai_providers_gemini",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "docs_add_ai_provider",
+      "target": "src_lib_ai_generate_generatereply",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "docs_add_ai_provider",
+      "target": "src_components_settings_ai_config",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_lib_ai_generate_generatereply",
+      "target": "src_lib_ai_providers_gemini",
+      "relation": "calls",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_app_api_ai_config_route_post",
+      "target": "src_lib_ai_types_aiprovider",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_app_api_ai_test_route_post",
+      "target": "src_lib_ai_types_aiprovider",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_components_settings_ai_config",
+      "target": "src_lib_ai_defaults_ai_provider_default_model",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_components_settings_ai_config",
+      "target": "src_lib_ai_types_aiprovider",
+      "relation": "references",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "source": "src_lib_flows_engine",
+      "target": "src_lib_flows_meta_send",
+      "relation": "calls",
+      "confidence": "INFERRED"
+    },
+    {
+      "source": "src_components_flows_forms_node_config_form",
+      "target": "src_lib_flows_engine",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "ai_provider_integration_flow",
+      "label": "AI Provider Integration Pattern",
+      "nodes": [
+        "src_lib_ai_types_aiprovider",
+        "src_lib_ai_defaults_ai_provider_default_model",
+        "src_lib_ai_providers_gemini",
+        "src_lib_ai_generate_generatereply",
+        "src_components_settings_ai_config"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "flow_builder_system",
+      "label": "Flow Builder Architecture",
+      "nodes": [
+        "src_lib_flows_engine",
+        "src_components_flows_forms_node_config_form",
+        "src_lib_flows_types"
+      ],
+      "relation": "form",
+      "confidence": "INFERRED"
+    }
+  ],
+  "input_tokens": 26491,
+  "output_tokens": 1131
+}
