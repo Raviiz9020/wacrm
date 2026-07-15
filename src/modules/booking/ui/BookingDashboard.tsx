@@ -1014,99 +1014,101 @@ export function BookingDashboard() {
             /* Traditional Table View (Original with improvements) */
             <Card className="border-border bg-card">
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="border-border">
-                    <TableRow className="border-border hover:bg-transparent">
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Provider</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedAppts.map(appt => (
-                      <TableRow key={appt.id} className="border-border hover:bg-muted/30">
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
-                            {appt.conversation_id && (
-                              <a
-                                href={`/inbox?c=${appt.conversation_id}`}
-                                className="text-primary hover:text-primary/80 transition-colors"
-                              >
-                                <MessageSquare className="h-3.5 w-3.5" />
-                              </a>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-sm">{appt.service?.name}</div>
-                          <div className="text-xs text-muted-foreground">{appt.service?.duration_minutes} mins</div>
-                        </TableCell>
-                        <TableCell className="font-medium text-muted-foreground text-sm">
-                          {appt.provider?.name}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm">
-                          {formatDateTime(appt.start_time)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              appt.status === "confirmed"
-                                ? "default"
-                                : appt.status === "cancelled"
-                                ? "destructive"
-                                : "outline"
-                            }
-                            className={
-                              appt.status === "confirmed"
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : ""
-                            }
-                          >
-                            {appt.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {appt.status === "confirmed" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
-                              onClick={() => {
-                                if (confirm("Are you sure you want to cancel this appointment?")) {
-                                  cancel(appt.id);
-                                }
-                              }}
-                              title="Cancel Appointment"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-
-                          {appt.status === "cancelled" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
-                              onClick={() => {
-                                if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                  deleteAppointment(appt.id);
-                                }
-                              }}
-                              title="Delete Appointment permanently"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader className="border-border">
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Provider</TableHead>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedAppts.map(appt => (
+                        <TableRow key={appt.id} className="border-border hover:bg-muted/30">
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
+                              {appt.conversation_id && (
+                                <a
+                                  href={`/inbox?c=${appt.conversation_id}`}
+                                  className="text-primary hover:text-primary/80 transition-colors"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-sm">{appt.service?.name}</div>
+                            <div className="text-xs text-muted-foreground">{appt.service?.duration_minutes} mins</div>
+                          </TableCell>
+                          <TableCell className="font-medium text-muted-foreground text-sm">
+                            {appt.provider?.name}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {formatDateTime(appt.start_time)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                appt.status === "confirmed"
+                                  ? "default"
+                                  : appt.status === "cancelled"
+                                  ? "destructive"
+                                  : "outline"
+                              }
+                              className={
+                                appt.status === "confirmed"
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : ""
+                              }
+                            >
+                              {appt.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {appt.status === "confirmed" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to cancel this appointment?")) {
+                                    cancel(appt.id);
+                                  }
+                                }}
+                                title="Cancel Appointment"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+  
+                            {appt.status === "cancelled" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                    deleteAppointment(appt.id);
+                                  }
+                                }}
+                                title="Delete Appointment permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           )}
