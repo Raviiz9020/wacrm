@@ -89,16 +89,17 @@ export function BookingDashboard() {
 
   // Scheduler Configuration States
   const [schedProviderId, setSchedProviderId] = useState("");
-  const [weeklySchedules, setWeeklySchedules] = useState<{ [day: number]: { active: boolean; start: string; end: string } }>({
-    1: { active: true, start: "09:00", end: "17:00" },
-    2: { active: true, start: "09:00", end: "17:00" },
-    3: { active: true, start: "09:00", end: "17:00" },
-    4: { active: true, start: "09:00", end: "17:00" },
-    5: { active: true, start: "09:00", end: "17:00" },
-    0: { active: false, start: "09:00", end: "17:00" },
-    6: { active: false, start: "09:00", end: "17:00" },
+  const [weeklySchedules, setWeeklySchedules] = useState<{ [day: number]: { active: boolean; shifts: { start: string; end: string }[] } }>({
+    1: { active: true, shifts: [{ start: "09:00", end: "17:00" }] },
+    2: { active: true, shifts: [{ start: "09:00", end: "17:00" }] },
+    3: { active: true, shifts: [{ start: "09:00", end: "17:00" }] },
+    4: { active: true, shifts: [{ start: "09:00", end: "17:00" }] },
+    5: { active: true, shifts: [{ start: "09:00", end: "17:00" }] },
+    0: { active: false, shifts: [{ start: "09:00", end: "17:00" }] },
+    6: { active: false, shifts: [{ start: "09:00", end: "17:00" }] },
   });
   const [overrideDate, setOverrideDate] = useState("");
+  const [overrideList, setOverrideList] = useState<any[]>([]);
   const [overrideAvailable, setOverrideAvailable] = useState(false);
   const [overrideStart, setOverrideStart] = useState("09:00");
   const [overrideEnd, setOverrideEnd] = useState("17:00");
@@ -256,25 +257,40 @@ export function BookingDashboard() {
       const { data: weekly } = await supabase
         .from("booking_schedules")
         .select("day_of_week, start_time, end_time")
-        .eq("provider_id", schedProviderId);
+        .eq("provider_id", schedProviderId)
+        .order("start_time", { ascending: true });
 
-      const newWeekly = { ...weeklySchedules };
+      const newWeekly: { [day: number]: { active: boolean; shifts: { start: string; end: string }[] } } = {};
       // Reset all days to closed first
       for (let i = 0; i <= 6; i++) {
-        newWeekly[i] = { active: false, start: "09:00", end: "17:00" };
+        newWeekly[i] = { active: false, shifts: [] };
       }
       
-      // Populate active days
+      // Populate active days and shifts
       if (weekly && weekly.length > 0) {
         weekly.forEach(w => {
-          newWeekly[w.day_of_week] = {
-            active: true,
+          newWeekly[w.day_of_week].active = true;
+          newWeekly[w.day_of_week].shifts.push({
             start: w.start_time.slice(0, 5),
             end: w.end_time.slice(0, 5),
-          };
+          });
         });
       }
+      // Ensure all days have at least one shift to edit
+      for (let i = 0; i <= 6; i++) {
+        if (newWeekly[i].shifts.length === 0) {
+          newWeekly[i].shifts.push({ start: "09:00", end: "17:00" });
+        }
+      }
       setWeeklySchedules(newWeekly);
+
+      // Load overrides
+      const { data: overrides } = await supabase
+        .from("booking_schedule_overrides")
+        .select("*")
+        .eq("provider_id", schedProviderId)
+        .order("override_date", { ascending: true });
+      setOverrideList(overrides || []);
     }
     loadProviderSchedule();
   }, [schedProviderId]);
@@ -371,14 +387,22 @@ export function BookingDashboard() {
   const handleSaveSchedules = async () => {
     if (!schedProviderId) return;
     try {
-      const schedulesPayload = Object.keys(weeklySchedules)
-        .map(Number)
-        .filter(day => weeklySchedules[day].active)
-        .map(day => ({
-          day_of_week: day,
-          start_time: `${weeklySchedules[day].start}:00`,
-          end_time: `${weeklySchedules[day].end}:00`,
-        }));
+      const schedulesPayload: { day_of_week: number; start_time: string; end_time: string }[] = [];
+      Object.keys(weeklySchedules).forEach(dayKey => {
+        const day = Number(dayKey);
+        const sched = weeklySchedules[day];
+        if (sched.active) {
+          sched.shifts.forEach(shift => {
+            if (shift.start && shift.end) {
+              schedulesPayload.push({
+                day_of_week: day,
+                start_time: `${shift.start}:00`,
+                end_time: `${shift.end}:00`,
+              });
+            }
+          });
+        }
+      });
       await saveWeeklySchedule(schedProviderId, schedulesPayload);
       alert("Weekly schedule saved successfully!");
     } catch (err) {
@@ -398,8 +422,37 @@ export function BookingDashboard() {
       );
       alert("Schedule override date saved!");
       setOverrideDate("");
+      
+      // Refetch overrides
+      const { data: overrides } = await supabase
+        .from("booking_schedule_overrides")
+        .select("*")
+        .eq("provider_id", schedProviderId)
+        .order("override_date", { ascending: true });
+      setOverrideList(overrides || []);
     } catch (err) {
       alert("Failed to save schedule override.");
+    }
+  };
+
+  const handleDeleteOverride = async (overrideId: string) => {
+    if (!confirm("Are you sure you want to remove this override?")) return;
+    try {
+      const { error } = await supabase
+        .from("booking_schedule_overrides")
+        .delete()
+        .eq("id", overrideId);
+      if (error) throw error;
+      
+      // Refetch overrides
+      const { data: overrides } = await supabase
+        .from("booking_schedule_overrides")
+        .select("*")
+        .eq("provider_id", schedProviderId)
+        .order("override_date", { ascending: true });
+      setOverrideList(overrides || []);
+    } catch (err) {
+      alert("Failed to delete schedule override.");
     }
   };
 
@@ -408,6 +461,17 @@ export function BookingDashboard() {
     const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
     return `${dateStr} at ${timeStr}`;
+  };
+
+  const getFriendlyTime12Hour = (time24: string) => {
+    if (!time24) return "";
+    const [hStr, mStr] = time24.split(":");
+    const h = Number(hStr);
+    const m = Number(mStr);
+    if (isNaN(h) || isNaN(m)) return "";
+    const ampm = h >= 12 ? "PM" : "AM";
+    const displayHour = h % 12 === 0 ? 12 : h % 12;
+    return `${displayHour}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
   return (
@@ -1276,7 +1340,7 @@ export function BookingDashboard() {
               <CardDescription>Select a resource provider to configure active schedules and vacations.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid gap-2 max-w-[280px]">
+              <div className="grid gap-2 max-w-[400px]">
                 <Label htmlFor="sched_provider">Resource Provider</Label>
                 <Select value={schedProviderId} onValueChange={val => setSchedProviderId(val || "")}>
                   <SelectTrigger className="border-border">
@@ -1322,30 +1386,76 @@ export function BookingDashboard() {
                           </div>
                           
                           {weeklySchedules[day]?.active && (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="time"
-                                className="w-[100px] border-border h-8 text-xs"
-                                value={weeklySchedules[day].start}
-                                onChange={e => {
-                                  setWeeklySchedules(prev => ({
-                                    ...prev,
-                                    [day]: { ...prev[day], start: e.target.value },
-                                  }));
-                                }}
-                              />
-                              <span className="text-xs text-muted-foreground">to</span>
-                              <Input
-                                type="time"
-                                className="w-[100px] border-border h-8 text-xs"
-                                value={weeklySchedules[day].end}
-                                onChange={e => {
-                                  setWeeklySchedules(prev => ({
-                                    ...prev,
-                                    [day]: { ...prev[day], end: e.target.value },
-                                  }));
-                                }}
-                              />
+                            <div className="flex flex-col gap-1.5 w-[360px]">
+                              {(weeklySchedules[day].shifts || []).map((shift, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 justify-end">
+                                  <div className="flex flex-col items-center">
+                                    <Input
+                                      type="time"
+                                      className="w-[130px] border-border h-7 text-xs px-2"
+                                      value={shift.start}
+                                      onChange={e => {
+                                        const newShifts = [...weeklySchedules[day].shifts];
+                                        newShifts[idx] = { ...shift, start: e.target.value };
+                                        setWeeklySchedules(prev => ({
+                                          ...prev,
+                                          [day]: { ...prev[day], shifts: newShifts },
+                                        }));
+                                      }}
+                                    />
+                                    <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.start)}</span>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground pb-4">to</span>
+                                  <div className="flex flex-col items-center">
+                                    <Input
+                                      type="time"
+                                      className="w-[130px] border-border h-7 text-xs px-2"
+                                      value={shift.end}
+                                      onChange={e => {
+                                        const newShifts = [...weeklySchedules[day].shifts];
+                                        newShifts[idx] = { ...shift, end: e.target.value };
+                                        setWeeklySchedules(prev => ({
+                                          ...prev,
+                                          [day]: { ...prev[day], shifts: newShifts },
+                                        }));
+                                      }}
+                                    />
+                                    <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.end)}</span>
+                                  </div>
+                                  {weeklySchedules[day].shifts.length > 1 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        const newShifts = weeklySchedules[day].shifts.filter((_, sIdx) => sIdx !== idx);
+                                        setWeeklySchedules(prev => ({
+                                          ...prev,
+                                          [day]: { ...prev[day], shifts: newShifts },
+                                        }));
+                                      }}
+                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 pb-4"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              <div className="flex justify-end pr-2">
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newShifts = [...(weeklySchedules[day].shifts || []), { start: "09:00", end: "17:00" }];
+                                    setWeeklySchedules(prev => ({
+                                      ...prev,
+                                      [day]: { ...prev[day], shifts: newShifts },
+                                    }));
+                                  }}
+                                  className="h-5 text-[10px] p-0 text-primary hover:text-primary/80"
+                                >
+                                  + Add Shift
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1387,6 +1497,7 @@ export function BookingDashboard() {
                               value={overrideStart}
                               onChange={e => setOverrideStart(e.target.value)}
                             />
+                            <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(overrideStart)}</span>
                           </div>
                           <div className="grid gap-1">
                             <Label htmlFor="ov_end" className="text-xs">End Time</Label>
@@ -1397,12 +1508,58 @@ export function BookingDashboard() {
                               value={overrideEnd}
                               onChange={e => setOverrideEnd(e.target.value)}
                             />
+                            <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(overrideEnd)}</span>
                           </div>
                         </div>
                       )}
                       <Button onClick={handleSaveOverride} variant="secondary" size="sm" className="mt-2" disabled={!overrideDate}>
                         Set Override
                       </Button>
+                      
+                      {/* Active overrides list */}
+                      {overrideList.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-border space-y-2">
+                          <h5 className="text-xs font-bold text-foreground">Current Overrides & Time Off:</h5>
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            {overrideList.map(ov => {
+                              // Render local timezone safe date representation
+                              const [yStr, mStr, dStr] = ov.override_date.split("-").map(Number);
+                              const dateObj = new Date(yStr, mStr - 1, dStr);
+                              const formattedDate = dateObj.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              });
+                              return (
+                                <div key={ov.id} className="flex items-center justify-between text-xs p-2 border border-border rounded bg-card hover:bg-muted/5 transition-colors">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-semibold">{formattedDate}</span>
+                                    <span>
+                                      {ov.is_available ? (
+                                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-0.5 px-1.5 rounded">
+                                          {ov.start_time.slice(0, 5)} - {ov.end_time.slice(0, 5)}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 py-0.5 px-1.5 rounded">
+                                          Time Off (Closed)
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteOverride(ov.id)}
+                                    className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

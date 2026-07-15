@@ -866,26 +866,34 @@ async function processMessage(
 
   if (isDaySelectTrigger || isServiceSelectTrigger || isDaySelectResponse || isTodayTrigger || isTomorrowTrigger || isPeriodTrigger || isProviderTrigger) {
     try {
-      // 1. Enforce Booking Limit: Only 1 active appointment allowed.
-      const { data: activeAppt } = await supabaseAdmin()
-        .from('booking_appointments')
+      // 1. Enforce Booking Limit: Max 1 active appointment per doctor.
+      // Fetch all active providers for the account
+      const { data: activeDoctors } = await supabaseAdmin()
+        .from('booking_providers')
         .select('id')
-        .eq('contact_id', contactRecord.id)
-        .eq('status', 'confirmed')
-        .limit(1)
-        .maybeSingle();
+        .eq('account_id', accountId)
+        .eq('is_active', true);
+      const totalActiveDoctors = activeDoctors?.length || 0;
 
-      if (activeAppt) {
+      // Fetch confirmed appointments for this contact
+      const { data: activeAppts } = await supabaseAdmin()
+        .from('booking_appointments')
+        .select('provider_id')
+        .eq('contact_id', contactRecord.id)
+        .eq('status', 'confirmed');
+      const totalActiveAppointments = activeAppts?.length || 0;
+
+      if (totalActiveDoctors > 0 && totalActiveAppointments >= totalActiveDoctors) {
         const { engineSendText } = await import('@/lib/flows/meta-send');
         await engineSendText({
           accountId,
           userId: configOwnerUserId,
           conversationId: conversation.id,
           contactId: contactRecord.id,
-          text: 'You already have an active appointment scheduled. Please cancel it first if you wish to rebook.',
+          text: 'You already have active appointments scheduled with all our doctors. Please cancel one first if you wish to rebook.',
         });
         bookingSlotsHandled = true;
-        console.log(`[booking-webhook] Prevented booking due to active appointment for ${contactRecord.phone}`);
+        console.log(`[booking-webhook] Prevented booking due to max doctor appointment limits for ${contactRecord.phone}`);
       } else {
         if (isDaySelectTrigger) {
           // Fetch active services
@@ -986,7 +994,7 @@ async function processMessage(
             serviceId = parts[1];
             dayLabel = parts[2];
           } else {
-            // Text or old buttons fallback
+            // Text or old booking buttons fallback
             dayLabel = isTomorrowTrigger ? 'tomorrow' : 'today';
             // Find first active service
             const { data: defaultService } = await supabaseAdmin()
@@ -1010,20 +1018,114 @@ async function processMessage(
             });
             bookingSlotsHandled = true;
           } else {
-            const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
-            await engineSendInteractiveButtons({
-              accountId,
-              userId: configOwnerUserId,
-              conversationId: conversation.id,
-              contactId: contactRecord.id,
-              bodyText: `Would you like a morning, afternoon, or evening slot for ${dayLabel}?`,
-              buttons: [
-                { id: `book_period:${serviceId}:${dayLabel}:morning`, title: 'Morning' },
-                { id: `book_period:${serviceId}:${dayLabel}:afternoon`, title: 'Afternoon' },
-                { id: `book_period:${serviceId}:${dayLabel}:evening`, title: 'Evening' },
-              ],
-            });
-            bookingSlotsHandled = true;
+            // Fetch active providers mapped to this service
+            const { data: providerServices } = await supabaseAdmin()
+              .from('booking_provider_services')
+              .select(`
+                provider:booking_providers (
+                  id,
+                  is_active
+                )
+              `)
+              .eq('account_id', accountId)
+              .eq('service_id', serviceId);
+
+            const providers = providerServices
+              ?.map((ps: any) => ps.provider)
+              .filter((p: any) => p && p.is_active) || [];
+
+            const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+            const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
+
+            if (eligibleProviders.length === 0) {
+              const { engineSendText } = await import('@/lib/flows/meta-send');
+              await engineSendText({
+                accountId,
+                userId: configOwnerUserId,
+                conversationId: conversation.id,
+                contactId: contactRecord.id,
+                text: 'Sorry, you already have an active appointment scheduled with all doctors offering this service. Please cancel one first.',
+              });
+              bookingSlotsHandled = true;
+            } else {
+              // Calculate target date string
+              const BUSINESS_TIMEZONE = 'Asia/Kolkata';
+              const nowUTC = new Date();
+              const now = new Date(nowUTC.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
+              const targetDate = new Date(now);
+              if (dayLabel === 'tomorrow') {
+                targetDate.setDate(now.getDate() + 1);
+              }
+              const y = targetDate.getFullYear();
+              const mon = String(targetDate.getMonth() + 1).padStart(2, '0');
+              const d = String(targetDate.getDate()).padStart(2, '0');
+              const targetDateStr = `${y}-${mon}-${d}`;
+
+              // Query all slots for eligible providers and merge them
+              const { getAvailableSlots } = await import('@/modules/booking/services/slotGenerator');
+              const allSlots: any[] = [];
+              for (const prov of eligibleProviders) {
+                try {
+                  const slots = await getAvailableSlots(accountId, prov.id, serviceId, targetDateStr, supabaseAdmin());
+                  allSlots.push(...slots);
+                } catch (e) {
+                  console.error('[booking-webhook] Error pre-fetching slots for periods:', e);
+                }
+              }
+
+              if (allSlots.length === 0) {
+                const { engineSendText } = await import('@/lib/flows/meta-send');
+                await engineSendText({
+                  accountId,
+                  userId: configOwnerUserId,
+                  conversationId: conversation.id,
+                  contactId: contactRecord.id,
+                  text: `Sorry, there are no available slots remaining for ${dayLabel} (${targetDateStr}). Please try another day.`,
+                });
+                bookingSlotsHandled = true;
+              } else {
+                const hasMorning = allSlots.some(s => Number(s.start_time.split(':')[0]) < 12);
+                const hasAfternoon = allSlots.some(s => {
+                  const h = Number(s.start_time.split(':')[0]);
+                  return h >= 12 && h < 17;
+                });
+                const hasEvening = allSlots.some(s => Number(s.start_time.split(':')[0]) >= 17);
+
+                const buttons: { id: string; title: string }[] = [];
+                if (hasMorning) {
+                  buttons.push({ id: `book_period:${serviceId}:${dayLabel}:morning`, title: 'Morning' });
+                }
+                if (hasAfternoon) {
+                  buttons.push({ id: `book_period:${serviceId}:${dayLabel}:afternoon`, title: 'Afternoon' });
+                }
+                if (hasEvening) {
+                  buttons.push({ id: `book_period:${serviceId}:${dayLabel}:evening`, title: 'Evening' });
+                }
+
+                if (buttons.length === 0) {
+                  const { engineSendText } = await import('@/lib/flows/meta-send');
+                  await engineSendText({
+                    accountId,
+                    userId: configOwnerUserId,
+                    conversationId: conversation.id,
+                    contactId: contactRecord.id,
+                    text: `Sorry, there are no slots available for ${dayLabel} (${targetDateStr}) in any period. Please try another day.`,
+                  });
+                  bookingSlotsHandled = true;
+                } else {
+                  const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+                  await engineSendInteractiveButtons({
+                    accountId,
+                    userId: configOwnerUserId,
+                    conversationId: conversation.id,
+                    contactId: contactRecord.id,
+                    bodyText: `Would you like a morning, afternoon, or evening slot for ${dayLabel}?`,
+                    buttons,
+                  });
+                  bookingSlotsHandled = true;
+                }
+              }
+            }
           }
         } else if (isPeriodTrigger) {
           const parts = cleanReplyId.split(':');
@@ -1048,19 +1150,23 @@ async function processMessage(
             ?.map((ps: any) => ps.provider)
             .filter((p: any) => p && p.is_active) || [];
 
-          if (providers.length === 0) {
+          // Exclude doctors the contact already has confirmed bookings with
+          const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+          const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
+
+          if (eligibleProviders.length === 0) {
             const { engineSendText } = await import('@/lib/flows/meta-send');
             await engineSendText({
               accountId,
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              text: 'Sorry, there are no doctors available for this service at the moment.',
+              text: 'Sorry, you already have an active appointment scheduled with all doctors offering this service. Please cancel one first.',
             });
             bookingSlotsHandled = true;
-          } else if (providers.length === 1) {
-            // Only 1 doctor offers it, skip doctor select
-            const provider = providers[0];
+          } else if (eligibleProviders.length === 1) {
+            // Only 1 eligible doctor offers it, skip doctor select
+            const provider = eligibleProviders[0];
             await sendSlotsForParams({
               dayLabel,
               period,
@@ -1077,9 +1183,8 @@ async function processMessage(
             // Multiple doctors offer it, ask which doctor
             const { engineSendInteractiveButtons, engineSendInteractiveList } = await import('@/lib/flows/meta-send');
             const providerText = `Which doctor would you like to book with for ${dayLabel} ${period}?`;
-
-            if (providers.length <= 3) {
-              const buttons = providers.map((p: any) => ({
+            if (eligibleProviders.length <= 3) {
+              const buttons = eligibleProviders.map((p: any) => ({
                 id: `book_prov:${serviceId}:${dayLabel}:${period}:${p.id}`,
                 title: p.name.slice(0, 20),
               }));
@@ -1102,7 +1207,7 @@ async function processMessage(
                 sections: [
                   {
                     title: "Available Doctors",
-                    rows: providers.map((p: any) => ({
+                    rows: eligibleProviders.map((p: any) => ({
                       id: `book_prov:${serviceId}:${dayLabel}:${period}:${p.id}`,
                       title: p.name.slice(0, 24),
                       description: `Book with ${p.name}`,
