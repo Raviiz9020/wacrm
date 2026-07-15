@@ -731,8 +731,10 @@ export function BookingDashboard() {
 
                   {/* Cards list */}
                   <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    {groupedAppts[dateStr].map(appt => (
-                      <Card key={appt.id} className="border-border bg-card hover:bg-muted/10 transition-all">
+                    {groupedAppts[dateStr].map(appt => {
+                      const isPast = new Date(appt.end_time).getTime() < Date.now();
+                      return (
+                        <Card key={appt.id} className={`border-border bg-card hover:bg-muted/10 transition-all ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
                         <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
                           <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
                             <div>
@@ -833,7 +835,8 @@ export function BookingDashboard() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -900,7 +903,7 @@ export function BookingDashboard() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
                 {providers.filter(p => p.is_active).map(provider => {
                   const provAppts = sortedAppts.filter(appt => {
                     if (appt.provider?.id !== provider.id) return false;
@@ -910,7 +913,7 @@ export function BookingDashboard() {
                   });
 
                   return (
-                    <Card key={provider.id} className="border-border bg-card flex flex-col min-h-[300px]">
+                    <Card key={provider.id} className="border-border bg-card flex flex-col">
                       <CardHeader className="p-3.5 border-b border-border flex flex-row items-center justify-between space-y-0 bg-muted/10">
                         <div>
                           <CardTitle className="text-sm font-bold text-foreground">{provider.name}</CardTitle>
@@ -932,78 +935,83 @@ export function BookingDashboard() {
                       </CardHeader>
                       <CardContent className="p-3 flex-1 space-y-3 bg-card overflow-y-auto">
                         {provAppts.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-muted-foreground/60 text-xs py-16 text-center">
+                          <div className="h-full flex flex-col items-center justify-center text-muted-foreground/60 text-xs py-8 text-center">
                             <CalendarX2 className="h-6 w-6 mb-2 text-muted-foreground/30" />
                             No bookings today
                           </div>
                         ) : (
-                          provAppts.map(appt => (
-                            <Card key={appt.id} className="border-border bg-muted/20 hover:bg-muted/40 transition-colors">
-                              <div className="p-3 space-y-2">
-                                <div className="flex justify-between items-start gap-1">
-                                  <span className="text-[9px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
-                                    {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
-                                  </span>
-                                  <Badge
-                                    variant={appt.status === "confirmed" ? "default" : "destructive"}
-                                    className={`text-[8px] px-1 py-0.5 ${appt.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}`}
-                                  >
-                                    {appt.status}
-                                  </Badge>
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-foreground">{appt.contact?.name || "Unknown"}</span>
-                                    {appt.conversation_id && (
-                                      <a
-                                        href={`/inbox?c=${appt.conversation_id}`}
-                                        className="text-primary hover:text-primary/80"
-                                      >
-                                        <MessageSquare className="h-3 w-3" />
-                                      </a>
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">{appt.service?.name} ({appt.service?.duration_minutes}m)</p>
-                                </div>
-                                {appt.status === "confirmed" && (
-                                  <div className="flex justify-end pt-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
-                                      onClick={() => {
-                                        if (confirm("Are you sure you want to cancel this appointment?")) {
-                                          cancel(appt.id);
-                                        }
-                                      }}
-                                      title="Cancel Appointment"
+                          provAppts.map(appt => {
+                            const isPast = new Date(appt.end_time).getTime() < Date.now();
+                            return (
+                              <Card key={appt.id} className={`border-border bg-muted/20 hover:bg-muted/40 transition-colors ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
+                                <div className="p-3 space-y-2">
+                                  <div className="flex justify-between items-start gap-1">
+                                    <span className="text-[9px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
+                                      {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                    </span>
+                                    <Badge
+                                      variant={appt.status === "confirmed" ? "default" : "destructive"}
+                                      className={`text-[8px] px-1 py-0.5 ${appt.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}`}
                                     >
-                                      <XCircle className="h-3.5 w-3.5" />
-                                    </Button>
+                                      {appt.status}
+                                    </Badge>
                                   </div>
-                                )}
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-semibold text-foreground">{appt.contact?.name || "Unknown"}</span>
+                                        {appt.conversation_id && (
+                                          <a
+                                            href={`/inbox?c=${appt.conversation_id}`}
+                                            className="text-primary hover:text-primary/80"
+                                          >
+                                            <MessageSquare className="h-3 w-3" />
+                                          </a>
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground">{appt.service?.name} ({appt.service?.duration_minutes}m)</p>
+                                    </div>
+                                    
+                                    {/* Inline actions to save height */}
+                                    <div className="flex items-center gap-1">
+                                      {appt.status === "confirmed" && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
+                                          onClick={() => {
+                                            if (confirm("Are you sure you want to cancel this appointment?")) {
+                                              cancel(appt.id);
+                                            }
+                                          }}
+                                          title="Cancel Appointment"
+                                        >
+                                          <XCircle className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
 
-                                {appt.status === "cancelled" && (
-                                  <div className="flex justify-end pt-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
-                                      onClick={() => {
-                                        if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                          deleteAppointment(appt.id);
-                                        }
-                                      }}
-                                      title="Delete Appointment permanently"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                      {appt.status === "cancelled" && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
+                                          onClick={() => {
+                                            if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                              deleteAppointment(appt.id);
+                                            }
+                                          }}
+                                          title="Delete Appointment permanently"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            </Card>
-                          ))
-                        )}
+                                </div>
+                              </Card>
+                            );
+                          }))
+                        }
                       </CardContent>
                     </Card>
                   );
@@ -1027,8 +1035,10 @@ export function BookingDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedAppts.map(appt => (
-                        <TableRow key={appt.id} className="border-border hover:bg-muted/30">
+                      {sortedAppts.map(appt => {
+                        const isPast = new Date(appt.end_time).getTime() < Date.now();
+                        return (
+                          <TableRow key={appt.id} className={`border-border hover:bg-muted/30 ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
@@ -1105,7 +1115,8 @@ export function BookingDashboard() {
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
