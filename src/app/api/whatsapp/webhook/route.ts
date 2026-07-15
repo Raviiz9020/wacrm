@@ -875,15 +875,21 @@ async function processMessage(
         .eq('is_active', true);
       const totalActiveDoctors = activeDoctors?.length || 0;
 
+      // Get total active provider-services mapped
+      const { data: providerServices } = await supabaseAdmin()
+        .from('booking_provider_services')
+        .select('provider_id, service_id');
+      const totalPossibleCombinations = providerServices?.length || 0;
+
       // Fetch confirmed appointments for this contact
       const { data: activeAppts } = await supabaseAdmin()
         .from('booking_appointments')
-        .select('provider_id')
+        .select('provider_id, service_id')
         .eq('contact_id', contactRecord.id)
         .eq('status', 'confirmed');
       const totalActiveAppointments = activeAppts?.length || 0;
 
-      if (totalActiveDoctors > 0 && totalActiveAppointments >= totalActiveDoctors) {
+      if (totalPossibleCombinations > 0 && totalActiveAppointments >= totalPossibleCombinations) {
         const { engineSendText } = await import('@/lib/flows/meta-send');
         await engineSendText({
           accountId,
@@ -1034,7 +1040,9 @@ async function processMessage(
               ?.map((ps: any) => ps.provider)
               .filter((p: any) => p && p.is_active) || [];
 
-            const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+            const bookedProviderIds = activeAppts
+              ?.filter((a: any) => a.service_id === serviceId)
+              ?.map((a: any) => a.provider_id) || [];
             const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
 
             if (eligibleProviders.length === 0) {
@@ -1150,8 +1158,10 @@ async function processMessage(
             ?.map((ps: any) => ps.provider)
             .filter((p: any) => p && p.is_active) || [];
 
-          // Exclude doctors the contact already has confirmed bookings with
-          const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+          // Exclude doctors the contact already has confirmed bookings with for this service
+          const bookedProviderIds = activeAppts
+            ?.filter((a: any) => a.service_id === serviceId)
+            ?.map((a: any) => a.provider_id) || [];
           const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
 
           if (eligibleProviders.length === 0) {
@@ -1762,6 +1772,8 @@ async function sendSlotsForParams({
   conversationId: string;
   contactId: string;
 }) {
+  const displayName = providerName;
+
   const BUSINESS_TIMEZONE = 'Asia/Kolkata';
   const nowUTC = new Date();
   const now = new Date(nowUTC.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
@@ -1808,7 +1820,7 @@ async function sendSlotsForParams({
         userId: configOwnerUserId,
         conversationId,
         contactId,
-        bodyText: `Available slots for Dr. ${providerName} on ${dayLabel} (${targetDateStr}) in the ${period}:`,
+        bodyText: `Available slots for ${displayName} on ${dayLabel} (${targetDateStr}) in the ${period}:`,
         buttons,
       });
     } else {
@@ -1818,7 +1830,7 @@ async function sendSlotsForParams({
         userId: configOwnerUserId,
         conversationId,
         contactId,
-        bodyText: `Available slots for Dr. ${providerName} on ${dayLabel} (${targetDateStr}) in the ${period}. Tap below to choose:`,
+        bodyText: `Available slots for ${displayName} on ${dayLabel} (${targetDateStr}) in the ${period}. Tap below to choose:`,
         buttonLabel: "Select a Time",
         sections: [
           {
@@ -1840,7 +1852,7 @@ async function sendSlotsForParams({
       userId: configOwnerUserId,
       conversationId,
       contactId,
-      text: `Sorry, there are no slots available for Dr. ${providerName} on ${dayLabel} in the ${period}. Please try another doctor or time period.`,
+      text: `Sorry, there are no slots available for ${displayName} on ${dayLabel} in the ${period}. Please try another doctor or time period.`,
     });
   }
 }
