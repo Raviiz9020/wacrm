@@ -2270,9 +2270,9 @@
     "semantic_hash": "bf0700216d93f4eb0554e6a27d23f027"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/messages/en.json": {
-    "mtime": 1783928362.167531,
-    "ast_hash": "c8d26d6350b05f610a0083c05d05d459",
-    "semantic_hash": "c8d26d6350b05f610a0083c05d05d459"
+    "mtime": 1784054106.0438108,
+    "ast_hash": "ea455ac29446813b9792ece32b3793c2",
+    "semantic_hash": "ea455ac29446813b9792ece32b3793c2"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/next.config.ts": {
     "mtime": 1783692506.7787921,
@@ -2460,7 +2460,7 @@
     "semantic_hash": "9c7f417fdd7eb40a0892d6eafb18ed5c"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/app/api/ai/config/route.ts": {
-    "mtime": 1784010505.2921948,
+    "mtime": 1784035954.617977,
     "ast_hash": "b35842be062339b064196970adc6dd91",
     "semantic_hash": "b35842be062339b064196970adc6dd91"
   },
@@ -2490,7 +2490,7 @@
     "semantic_hash": "f1553badf050dec6db376738c24d2ef6"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/app/api/ai/test/route.ts": {
-    "mtime": 1784010503.2429016,
+    "mtime": 1784035954.618042,
     "ast_hash": "8dadd7722e91cd6d3804929e417849a6",
     "semantic_hash": "8dadd7722e91cd6d3804929e417849a6"
   },
@@ -2695,9 +2695,9 @@
     "semantic_hash": "5bc00e9a647d9ef305b70e42f409f4ef"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/app/api/whatsapp/webhook/route.ts": {
-    "mtime": 1783955838.2902806,
-    "ast_hash": "5a04f05af3d372fe8e9005c85523ebf8",
-    "semantic_hash": "5a04f05af3d372fe8e9005c85523ebf8"
+    "mtime": 1784118861.414847,
+    "ast_hash": "da16baa94139bbf7ff50216f469986dc",
+    "semantic_hash": "da16baa94139bbf7ff50216f469986dc"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/app/icon.tsx": {
     "mtime": 1783692506.7896671,
@@ -2740,9 +2740,9 @@
     "semantic_hash": "620a8cacfcdd0409443c7412131c1edb"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/automations/automation-builder.tsx": {
-    "mtime": 1783928181.1925466,
-    "ast_hash": "0f7129719751af7d3112e2cf41224bf6",
-    "semantic_hash": "0f7129719751af7d3112e2cf41224bf6"
+    "mtime": 1784052129.873563,
+    "ast_hash": "d5f7637b2115dcc4043a6d9861671d57",
+    "semantic_hash": "d5f7637b2115dcc4043a6d9861671d57"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/broadcasts/step1-choose-template.tsx": {
     "mtime": 1783692506.7907443,
@@ -2855,7 +2855,7 @@
     "semantic_hash": "6b6c7b4aacc391f187a602782831e46e"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/flows/forms/node-config-form.tsx": {
-    "mtime": 1784033949.4374394,
+    "mtime": 1784035954.618095,
     "ast_hash": "6eb43c2ad83763769bb24903df0bc7c3",
     "semantic_hash": "6eb43c2ad83763769bb24903df0bc7c3"
   },
@@ -2935,9 +2935,9 @@
     "semantic_hash": "6337f51a10be13022e41b197c077bdbd"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/interactive/interactive-builder.tsx": {
-    "mtime": 1783692506.794895,
-    "ast_hash": "29676a82443df7290608959a55871ba8",
-    "semantic_hash": "29676a82443df7290608959a55871ba8"
+    "mtime": 1784052122.0576956,
+    "ast_hash": "2707f269241167bb18f32c7ec54d95a8",
+    "semantic_hash": "2707f269241167bb18f32c7ec54d95a8"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/interactive/interactive-preview.tsx": {
     "mtime": 1783692506.7949557,
@@ -2995,7 +2995,7 @@
     "semantic_hash": "70cd14d23eb0f6fc60198f9b1ea59d41"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/components/settings/ai-config.tsx": {
-    "mtime": 1784012624.9921336,
+    "mtime": 1784035954.618174,
     "ast_hash": "4a2b093214664a87d5f0ca05755c2347",
     "semantic_hash": "4a2b093214664a87d5f0ca05755c2347"
   },
@@ -3345,7 +3345,7 @@
     "semantic_hash": "948b66c121c51f13ae3e46d9c8441b24"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/lib/ai/defaults.ts": {
-    "mtime": 1784009941.433437,
+    "mtime": 1784035954.618256,
     "ast_hash": "627d024e51b332ff106449d1afefbf78",
     "semantic_hash": "627d024e51b332ff106449d1afefbf78"
   },
@@ -3365,7 +3365,7 @@
     "semantic_hash": "55cdac7f7a84c825ced945d027d130d9"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/lib/ai/generate.ts": {
-    "mtime": 1784009961.3521109,
+    "mtime": 1784035954.618314,
     "ast_hash": "381d83649c21b11a8106328a6b42a7dc",
     "semantic_hash": "381d83649c21b11a8106328a6b42a7dc"
   },
@@ -3420,7 +3420,7 @@
     "semantic_hash": "43f90b6c734d3eb2eddd91c6c0f8e78e"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/lib/ai/types.ts": {
-    "mtime": 1784009939.3872683,
+    "mtime": 1784035954.618413,
     "ast_hash": "6c2587aa5d64603405430a75da87ad6f",
     "semantic_hash": "6c2587aa5d64603405430a75da87ad6f"
   },
@@ -3670,7 +3670,7 @@
     "semantic_hash": "a6c68f1f2b0e4137546f09865bc336f2"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/lib/flows/engine.ts": {
-    "mtime": 1784032879.5857365,
+    "mtime": 1784035954.618444,
     "ast_hash": "e69efa4b411fe7f3d98a89a85ef7ef1d",
     "semantic_hash": "e69efa4b411fe7f3d98a89a85ef7ef1d"
   },
@@ -4030,9 +4030,9 @@
     "semantic_hash": "e1f3e7e8c1c8a6d342022affe3a54ab3"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/modules/booking/hooks/useBooking.ts": {
-    "mtime": 1783936979.2203274,
-    "ast_hash": "9b0891815b2315e706df69670496f865",
-    "semantic_hash": "9b0891815b2315e706df69670496f865"
+    "mtime": 1784113888.6188698,
+    "ast_hash": "0c8d666404cf26e848864135f538b8e9",
+    "semantic_hash": "0c8d666404cf26e848864135f538b8e9"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/modules/booking/services/bookingService.ts": {
     "mtime": 1783955091.2052994,
@@ -4045,9 +4045,9 @@
     "semantic_hash": "ec82ece6299d96aa87b30c91fd9dc785"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/modules/booking/ui/BookingDashboard.tsx": {
-    "mtime": 1783938791.8850415,
-    "ast_hash": "34b44036fd656e0e76574be01b31188f",
-    "semantic_hash": "34b44036fd656e0e76574be01b31188f"
+    "mtime": 1784116439.7231958,
+    "ast_hash": "ce3c2729b331f6a4cbf38a522fd9a33b",
+    "semantic_hash": "ce3c2729b331f6a4cbf38a522fd9a33b"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/types/index.ts": {
     "mtime": 1783928170.9333212,
@@ -4410,17 +4410,17 @@
     "semantic_hash": "b97e7d58a4bd43d98477f02b1aa45f4c"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/src/lib/ai/providers/gemini.ts": {
-    "mtime": 1784010648.8310041,
+    "mtime": 1784035954.618371,
     "ast_hash": "c78f97bce27f88247932e7d8f84c8e6c",
     "semantic_hash": "c78f97bce27f88247932e7d8f84c8e6c"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/supabase/migrations/040_add_gemini_provider.sql": {
-    "mtime": 1784011606.4889066,
+    "mtime": 1784035954.618471,
     "ast_hash": "d802ba1608252a8b5bd65a5993619b6e",
     "semantic_hash": "d802ba1608252a8b5bd65a5993619b6e"
   },
   "/Users/ravipatil/Documents/WaCRM/wacrm/docs/add-ai-provider.md": {
-    "mtime": 1784011858.790277,
+    "mtime": 1784035954.618495,
     "ast_hash": "d2b7002ead1e45693d7c08fc07d5f2c7",
     "semantic_hash": "d2b7002ead1e45693d7c08fc07d5f2c7"
   },

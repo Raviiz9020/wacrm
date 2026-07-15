@@ -158,6 +158,9 @@ function LoginPageInner() {
           </p>
         </CardContent>
       </Card>
+      <div className="fixed bottom-4 left-0 right-0 text-center text-xs text-muted-foreground">
+        A HyperTechLabs Product
+      </div>
     </div>
   );
 }

@@ -988,7 +988,7 @@ async function processMessage(
             userId: configOwnerUserId,
             conversationId: conversation.id,
             contactId: contactRecord.id,
-            text: 'You already have active appointments scheduled with all our doctors. Please cancel one first if you wish to rebook.',
+            text: 'You already have active appointments scheduled. Please cancel one first if you wish to rebook.',
           });
           bookingSlotsHandled = true;
         } else if (eligibleProviders.length === 1) {

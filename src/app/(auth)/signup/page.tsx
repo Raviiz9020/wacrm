@@ -144,7 +144,7 @@ function SignupPageInner() {
           <CardDescription className="text-muted-foreground">
             {inviteToken
               ? "Verify your email, then accept the invitation to join your team."
-              : "Get started with CRM Template for WhatsApp"}
+              : "Get started with HyperAgent AI"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -239,6 +239,9 @@ function SignupPageInner() {
           </p>
         </CardContent>
       </Card>
+      <div className="fixed bottom-4 left-0 right-0 text-center text-xs text-muted-foreground">
+        A HyperTechLabs Product
+      </div>
     </div>
   );
 }
