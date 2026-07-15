@@ -27,6 +27,7 @@ export function BookingDashboard() {
     addProvider,
     addService,
     mapProviderService,
+    updateProviderServices,
     saveWeeklySchedule,
     saveScheduleOverride,
     getSlots,
@@ -47,6 +48,7 @@ export function BookingDashboard() {
   
   // Edit States
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [editProvServices, setEditProvServices] = useState<string[]>([]);
   const [editingService, setEditingService] = useState<Service | null>(null);
   
   // Edit form inputs
@@ -296,6 +298,7 @@ export function BookingDashboard() {
     if (!editingProvider || !editProvName) return;
     try {
       await updateProvider(editingProvider.id, editProvName, editProvDesc, editProvActive);
+      await updateProviderServices(editingProvider.id, editProvServices);
       setEditingProvider(null);
     } catch (err) {
       alert("Failed to update resource provider.");
@@ -1109,6 +1112,7 @@ export function BookingDashboard() {
                           setEditProvName(p.name);
                           setEditProvDesc(p.description || "");
                           setEditProvActive(p.is_active);
+                          setEditProvServices(p.services?.map((s: any) => s.service_id) || []);
                         }}
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       >
@@ -1126,6 +1130,13 @@ export function BookingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground">{p.description || "No description set"}</p>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {services.filter(s => p.services?.some((ps: any) => ps.service_id === s.id)).map(s => (
+                        <Badge key={s.id} variant="secondary" className="text-[10px] py-0 px-1.5 border border-primary/10 bg-primary/5 text-primary">
+                          {s.name}
+                        </Badge>
+                      ))}
+                    </div>
                     <div className="mt-4">
                       <Badge variant="outline" className={p.is_active ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : ""}>
                         {p.is_active ? "Active" : "Inactive"}
@@ -1429,6 +1440,35 @@ export function BookingDashboard() {
                     value={editProvDesc}
                     onChange={e => setEditProvDesc(e.target.value)}
                   />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Services Offered</Label>
+                  <div className="grid grid-cols-2 gap-2 border border-border p-3 rounded bg-muted/5 max-h-40 overflow-y-auto">
+                    {services.length === 0 ? (
+                      <span className="text-xs text-muted-foreground col-span-2">No services configured yet.</span>
+                    ) : (
+                      services.map(s => {
+                        const isChecked = editProvServices.includes(s.id);
+                        return (
+                          <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer select-none text-foreground">
+                            <input
+                              type="checkbox"
+                              className="rounded border-border bg-background text-primary focus:ring-ring"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setEditProvServices(prev => prev.filter(id => id !== s.id));
+                                } else {
+                                  setEditProvServices(prev => [...prev, s.id]);
+                                }
+                              }}
+                            />
+                            <span>{s.name}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between p-2 border border-border rounded bg-muted/10 mt-2">
                   <span className="text-xs font-semibold">Active Status</span>

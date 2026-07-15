@@ -9,6 +9,7 @@ export interface Provider {
   description: string | null;
   profile_id: string | null;
   is_active: boolean;
+  services?: { service_id: string }[];
 }
 
 export interface Service {
@@ -48,11 +49,21 @@ export function useBooking() {
     try {
       const { data, error } = await supabase
         .from('booking_providers')
-        .select('*')
+        .select(`
+          *,
+          booking_provider_services (
+            service_id
+          )
+        `)
         .eq('account_id', account.id)
         .order('name', { ascending: true });
       if (error) throw error;
-      setProviders(data || []);
+      
+      const mapped = (data || []).map((p: any) => ({
+        ...p,
+        services: p.booking_provider_services || [],
+      }));
+      setProviders(mapped);
     } catch (err) {
       console.error('Error fetching providers:', err);
     }
@@ -171,6 +182,40 @@ export function useBooking() {
       if (error) throw error;
     } catch (err) {
       console.error('Map provider service failed:', err);
+      throw err;
+    }
+  };
+
+  const updateProviderServices = async (providerId: string, serviceIds: string[]) => {
+    if (!account?.id) return;
+    try {
+      // 1. Delete existing mappings
+      const { error: delErr } = await supabase
+        .from('booking_provider_services')
+        .delete()
+        .eq('provider_id', providerId);
+      if (delErr) throw delErr;
+
+      if (serviceIds.length === 0) {
+        await fetchProviders();
+        return;
+      }
+
+      // 2. Insert new mappings
+      const payload = serviceIds.map(serviceId => ({
+        account_id: account.id,
+        provider_id: providerId,
+        service_id: serviceId,
+      }));
+
+      const { error: insErr } = await supabase
+        .from('booking_provider_services')
+        .insert(payload);
+      if (insErr) throw insErr;
+
+      await fetchProviders();
+    } catch (err) {
+      console.error('Update provider services failed:', err);
       throw err;
     }
   };
@@ -408,6 +453,7 @@ export function useBooking() {
     addProvider,
     addService,
     mapProviderService,
+    updateProviderServices,
     saveWeeklySchedule,
     saveScheduleOverride,
     getSlots,
