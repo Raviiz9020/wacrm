@@ -486,7 +486,7 @@ export function BookingDashboard() {
         
         {/* Book Appointment Action */}
         <Dialog open={isBookOpen} onOpenChange={setIsBookOpen}>
-          <DialogTrigger render={<Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" />}>
+          <DialogTrigger render={<Button className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" />}>
             <Plus className="h-4 w-4" /> Book Appointment
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px] border-border bg-card">
@@ -609,18 +609,18 @@ export function BookingDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="border border-border bg-muted">
-          <TabsTrigger value="appointments">Appointments</TabsTrigger>
-          <TabsTrigger value="resources">Resources</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="availability">Availability Scheduler</TabsTrigger>
+        <TabsList className="w-full justify-start overflow-x-auto h-10 flex-nowrap border border-border bg-muted p-1 scrollbar-none">
+          <TabsTrigger value="appointments" className="shrink-0">Appointments</TabsTrigger>
+          <TabsTrigger value="resources" className="shrink-0">Resources</TabsTrigger>
+          <TabsTrigger value="services" className="shrink-0">Services</TabsTrigger>
+          <TabsTrigger value="availability" className="shrink-0">Availability Scheduler</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Appointments List */}
         <TabsContent value="appointments" className="space-y-4">
           {/* Filters & Search Control Bar */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-muted/20 p-4 border border-border rounded-lg">
-            <div className="flex flex-1 flex-wrap gap-2 items-center">
+            <div className="flex flex-1 flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center w-full">
               {/* Search Bar */}
               <div className="relative w-full sm:w-[240px]">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -634,7 +634,7 @@ export function BookingDashboard() {
 
               {/* Provider Selector */}
               <Select value={filterProviderId} onValueChange={val => setFilterProviderId(val || "all")}>
-                <SelectTrigger className="w-[160px] border-border bg-card">
+                <SelectTrigger className="w-full sm:w-[160px] border-border bg-card">
                   <span className="text-sm text-foreground">
                     {filterProviderId === "all" ? "All Providers" : providers.find(p => p.id === filterProviderId)?.name || "All Providers"}
                   </span>
@@ -649,7 +649,7 @@ export function BookingDashboard() {
 
               {/* Date Range Selector */}
               <Select value={filterDateRange} onValueChange={val => setFilterDateRange(val || "all")}>
-                <SelectTrigger className="w-[140px] border-border bg-card">
+                <SelectTrigger className="w-full sm:w-[140px] border-border bg-card">
                   <span className="text-sm text-foreground">
                     {filterDateRange === "all" ? "All Dates" : filterDateRange === "today" ? "Today" : filterDateRange === "tomorrow" ? "Tomorrow" : "Next 7 Days"}
                   </span>
@@ -664,7 +664,7 @@ export function BookingDashboard() {
               
               {/* Status Selector */}
               <Select value={filterStatus} onValueChange={val => setFilterStatus(val || "confirmed")}>
-                <SelectTrigger className="w-[140px] border-border bg-card">
+                <SelectTrigger className="w-full sm:w-[140px] border-border bg-card">
                   <span className="text-sm text-foreground">
                     {filterStatus === "all" ? "All Statuses" : filterStatus === "confirmed" ? "Confirmed" : "Cancelled"}
                   </span>
@@ -678,11 +678,11 @@ export function BookingDashboard() {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 bg-muted p-1 border border-border rounded-lg self-start md:self-auto">
+            <div className="flex items-center gap-1 bg-muted p-1 border border-border rounded-lg w-full md:w-auto justify-between md:justify-start">
               <Button
                 variant={viewMode === "agenda" ? "default" : "ghost"}
                 size="sm"
-                className="h-8 text-xs gap-1"
+                className="h-8 text-xs gap-1 flex-1 md:flex-initial"
                 onClick={() => setViewMode("agenda")}
               >
                 <List className="h-3.5 w-3.5" /> Agenda
@@ -690,7 +690,7 @@ export function BookingDashboard() {
               <Button
                 variant={viewMode === "timeline" ? "default" : "ghost"}
                 size="sm"
-                className="h-8 text-xs gap-1"
+                className="h-8 text-xs gap-1 flex-1 md:flex-initial"
                 onClick={() => setViewMode("timeline")}
               >
                 <CalendarDays className="h-3.5 w-3.5" /> Daily Roster
@@ -698,7 +698,7 @@ export function BookingDashboard() {
               <Button
                 variant={viewMode === "table" ? "default" : "ghost"}
                 size="sm"
-                className="h-8 text-xs gap-1"
+                className="h-8 text-xs gap-1 flex-1 md:flex-initial"
                 onClick={() => setViewMode("table")}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" /> Table
