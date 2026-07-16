@@ -82,6 +82,46 @@ export async function dispatchInboundToAiReply(
     const messages = await buildConversationContext(db, conversationId)
     if (messages.length === 0) return
 
+    // Quick static reply guard to bypass LLM and embeddings API for simple greetings/filler
+    const latestMsg = latestUserMessage(messages).trim().toLowerCase()
+    const GREETINGS = new Set(['hi', 'hello', 'hey', 'ola', 'yo', 'hlo', 'hllo'])
+    const THANKS = new Set(['thanks', 'thank you', 'tq', 'ty'])
+    const FAREWELLS = new Set(['bye', 'goodbye', 'tc'])
+
+    let staticReply: string | null = null
+    if (GREETINGS.has(latestMsg)) {
+      staticReply = 'Hello! How can I help you today?'
+    } else if (THANKS.has(latestMsg)) {
+      staticReply = "You're very welcome! Let me know if you need anything else."
+    } else if (FAREWELLS.has(latestMsg)) {
+      staticReply = 'Goodbye! Have a great day.'
+    }
+
+    if (staticReply) {
+      const { data: claimed, error: claimErr } = await db.rpc(
+        'claim_ai_reply_slot',
+        {
+          conversation_id: conversationId,
+          max_replies: config.autoReplyMaxPerConversation,
+        },
+      )
+      if (claimErr) {
+        console.error('[ai auto-reply] claim_ai_reply_slot failed for static reply:', claimErr)
+        return
+      }
+      if (claimed !== true) return
+
+      await engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId,
+        contactId,
+        text: staticReply,
+        aiGenerated: true,
+      })
+      return
+    }
+
     // Account-wide throttle on the shared BYO key. The per-conversation
     // cap bounds one thread; this bounds a burst across many threads (a
     // marketing blast landing 200 replies at once) so we never run the

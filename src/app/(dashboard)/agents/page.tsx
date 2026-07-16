@@ -46,7 +46,7 @@ export default function AgentsPage() {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Your bring-your-own-key AI agent — set it up, then test it in the
-        playground before it replies to customers in the inbox.
+        AI Assistant before it replies to customers in the inbox.
       </p>
 
       {decided && (
@@ -57,7 +57,7 @@ export default function AgentsPage() {
         >
           <TabsList>
             <TabsTrigger value="playground">
-              <Sparkles className="mr-1.5 h-4 w-4" /> Playground
+              <Sparkles className="mr-1.5 h-4 w-4" /> AI Assistant
             </TabsTrigger>
             <TabsTrigger value="setup">
               <Settings2 className="mr-1.5 h-4 w-4" /> Setup
