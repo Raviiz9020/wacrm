@@ -1108,13 +1108,18 @@ async function processMessage(
           const slots = await getAvailableSlots(accountId, providerId, serviceId, targetDateStr, supabaseAdmin());
 
           if (slots.length === 0) {
-            const { engineSendText } = await import('@/lib/flows/meta-send');
-            await engineSendText({
+            const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+            const oppositeDay = dayLabel === 'today' ? 'tomorrow' : 'today';
+            await engineSendInteractiveButtons({
               accountId,
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              text: `Sorry, there are no slots available on ${dayLabel} (${targetDateStr}) for this service. Please try another day.`,
+              bodyText: `Sorry, there are no slots available on ${dayLabel} (${targetDateStr}) for this service.`,
+              buttons: [
+                { id: `book_day:${providerId}:${serviceId}:${oppositeDay}`, title: `Try ${oppositeDay.charAt(0).toUpperCase() + oppositeDay.slice(1)}` },
+                { id: 'book_appointment', title: 'Start Over' },
+              ],
             });
             bookingSlotsHandled = true;
           } else {
@@ -1137,13 +1142,18 @@ async function processMessage(
             }
 
             if (buttons.length === 0) {
-              const { engineSendText } = await import('@/lib/flows/meta-send');
-              await engineSendText({
+              const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+              const oppositeDay = dayLabel === 'today' ? 'tomorrow' : 'today';
+              await engineSendInteractiveButtons({
                 accountId,
                 userId: configOwnerUserId,
                 conversationId: conversation.id,
                 contactId: contactRecord.id,
-                text: `Sorry, there are no slots available for ${dayLabel} (${targetDateStr}) in any period. Please try another day.`,
+                bodyText: `Sorry, there are no slots available for ${dayLabel} (${targetDateStr}) in any period.`,
+                buttons: [
+                  { id: `book_day:${providerId}:${serviceId}:${oppositeDay}`, title: `Try ${oppositeDay.charAt(0).toUpperCase() + oppositeDay.slice(1)}` },
+                  { id: 'book_appointment', title: 'Start Over' },
+                ],
               });
               bookingSlotsHandled = true;
             } else {
@@ -1803,14 +1813,19 @@ async function sendSlotsForParams({
       });
     }
   } else {
-    // Send text message stating no slots are available for the day/period
-    const { engineSendText } = await import('@/lib/flows/meta-send');
-    await engineSendText({
+    const { engineSendInteractiveButtons } = await import('@/lib/flows/meta-send');
+    const oppositeDay = dayLabel === 'today' ? 'tomorrow' : 'today';
+    await engineSendInteractiveButtons({
       accountId,
       userId: configOwnerUserId,
       conversationId,
       contactId,
-      text: `Sorry, there are no slots available for ${displayName} on ${dayLabel} in the ${period}. Please try another doctor or time period.`,
+      bodyText: `Sorry, no slots available for ${displayName} on ${dayLabel} in the ${period}.`,
+      buttons: [
+        { id: `book_day:${providerId}:${serviceId}:${dayLabel}`, title: 'Change Period' },
+        { id: `book_day:${providerId}:${serviceId}:${oppositeDay}`, title: `Try ${oppositeDay.charAt(0).toUpperCase() + oppositeDay.slice(1)}` },
+        { id: 'book_appointment', title: 'Start Over' },
+      ],
     });
   }
 }
