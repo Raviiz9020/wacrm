@@ -228,6 +228,101 @@ export function BookingDashboard() {
     groupedAppts[dateStr].push(appt);
   });
 
+  // Client-side stats and loads calculations for operational dashboard
+  const today = new Date();
+  const tStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  const tEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+  const todayAppts = appointments.filter(appt => {
+    const d = new Date(appt.start_time);
+    return d >= tStart && d <= tEnd;
+  });
+
+  const confirmedToday = todayAppts.filter(appt => appt.status === "confirmed");
+  const cancelledToday = todayAppts.filter(appt => appt.status === "cancelled");
+  const passedToday = todayAppts.filter(appt => {
+    return appt.status === "confirmed" && new Date(appt.end_time).getTime() < Date.now();
+  });
+  const remainingTodayCount = confirmedToday.length - passedToday.length;
+
+  const totalActiveProviders = providers.filter(p => p.is_active).length;
+
+  const providerLoads = providers
+    .filter(p => p.is_active)
+    .map(p => {
+      const count = confirmedToday.filter(appt => appt.provider?.id === p.id).length;
+      return { provider: p, count };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  const upcomingFutureBookings = appointments
+    .filter(appt => appt.status === "confirmed" && new Date(appt.start_time).getTime() > Date.now())
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    .slice(0, 5);
+
+  // Peak demand hours calculation
+  const hourCounts: { [hour: number]: number } = {};
+  appointments
+    .filter(a => a.status === 'confirmed')
+    .forEach(a => {
+      const date = new Date(a.start_time);
+      const hour = date.getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    });
+
+  const peakHours = Object.keys(hourCounts)
+    .map(h => {
+      const hour = parseInt(h);
+      const label = hour >= 12 ? `${hour === 12 ? 12 : hour - 12}:00 PM` : `${hour}:00 AM`;
+      return { label, count: hourCounts[hour] };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+  const getSimulatedStatusBadge = (appt: Appointment) => {
+    if (appt.status === "cancelled") {
+      return (
+        <Badge variant="destructive" className="bg-rose-500/10 text-rose-400 border-rose-500/20 text-[10px] font-bold">
+          cancelled
+        </Badge>
+      );
+    }
+
+    const now = Date.now();
+    const start = new Date(appt.start_time).getTime();
+    const end = new Date(appt.end_time).getTime();
+
+    if (end < now) {
+      return (
+        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-450 border-emerald-500/20 text-[10px] font-bold">
+          completed
+        </Badge>
+      );
+    }
+
+    if (start <= now && end >= now) {
+      return (
+        <Badge variant="default" className="bg-emerald-500 text-white border-none flex items-center gap-1 text-[10px] font-bold">
+          <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+          in session
+        </Badge>
+      );
+    }
+
+    if (start - now > 0 && start - now <= 30 * 60 * 1000) {
+      return (
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-450 border-amber-500/20 flex items-center gap-1 text-[10px] font-bold">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-450 animate-pulse" />
+          arriving soon
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/20 text-[10px] font-bold">
+        confirmed
+      </Badge>
+    );
+  };
   // Fetch slots dynamically when booking details change
   useEffect(() => {
     async function updateSlots() {
@@ -706,6 +801,69 @@ export function BookingDashboard() {
             </div>
           </div>
 
+          {/* KPI metrics cards row */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4 my-2">
+            <Card className="border border-border bg-card">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Today's Bookings</p>
+                  <p className="text-2xl font-bold text-foreground">{todayAppts.length}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {confirmedToday.length} confirmed • {cancelledToday.length} cancelled
+                  </p>
+                </div>
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border bg-card">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Completed Today</p>
+                  <p className="text-2xl font-bold text-foreground">{passedToday.length}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {remainingTodayCount} remaining today
+                  </p>
+                </div>
+                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-450">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border bg-card">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Providers Active</p>
+                  <p className="text-2xl font-bold text-foreground">{totalActiveProviders}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    All available today
+                  </p>
+                </div>
+                <div className="p-2 bg-sky-500/10 rounded-lg text-sky-450">
+                  <User className="h-5 w-5 text-sky-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border bg-card">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Total Future Queue</p>
+                  <p className="text-2xl font-bold text-foreground">{upcomingFutureBookings.length}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Upcoming queue
+                  </p>
+                </div>
+                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-450">
+                  <Clock className="h-5 w-5 text-amber-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {loading ? (
             <div className="py-20 text-center text-muted-foreground animate-pulse">Loading appointments...</div>
           ) : filteredAppointments.length === 0 ? (
@@ -715,131 +873,184 @@ export function BookingDashboard() {
             </div>
           ) : viewMode === "agenda" ? (
             /* Grouped Agenda View */
-            <div className="space-y-6">
-              {Object.keys(groupedAppts).map(dateStr => (
-                <div key={dateStr} className="space-y-3">
-                  {/* Daily Header */}
-                  <div className="flex items-center gap-2 border-b border-border pb-1">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    <span className="font-semibold text-foreground text-sm">
-                      {formatDateHeader(groupedAppts[dateStr][0].start_time)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-semibold">
-                      {groupedAppts[dateStr].length} {groupedAppts[dateStr].length === 1 ? 'booking' : 'bookings'}
-                    </span>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+              {/* Left Column: Grouped Daily Agenda (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
+                {Object.keys(groupedAppts).map(dateStr => (
+                  <div key={dateStr} className="space-y-3">
+                    {/* Daily Header */}
+                    <div className="flex items-center gap-2 border-b border-border pb-1">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-foreground text-sm">
+                        {formatDateHeader(groupedAppts[dateStr][0].start_time)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-semibold">
+                        {groupedAppts[dateStr].length} {groupedAppts[dateStr].length === 1 ? 'booking' : 'bookings'}
+                      </span>
+                    </div>
 
-                  {/* Cards list */}
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    {groupedAppts[dateStr].map(appt => {
-                      const isPast = new Date(appt.end_time).getTime() < Date.now();
-                      return (
-                        <Card key={appt.id} className={`border-border bg-card hover:bg-muted/10 transition-all ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
-                        <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
-                          <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
-                            <div>
-                              {/* Time & Provider row */}
-                              <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
-                                  {appt.provider?.name}
-                                </span>
+                    {/* Cards list */}
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {groupedAppts[dateStr].map(appt => {
+                        const isPast = new Date(appt.end_time).getTime() < Date.now();
+                        return (
+                          <Card key={appt.id} className={`border-border bg-card hover:bg-muted/10 transition-all ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
+                          <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
+                            <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
+                              <div>
+                                {/* Time & Provider row */}
+                                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                  <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
+                                    {appt.provider?.name}
+                                  </span>
+                                </div>
+
+                                {/* Customer name + chat icon */}
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
+                                    {appt.conversation_id && (
+                                      <a
+                                        href={`/inbox?c=${appt.conversation_id}`}
+                                        className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
+                                        title="Open Chat in Inbox"
+                                      >
+                                        <MessageSquare className="h-3.5 w-3.5" />
+                                      </a>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
+                                </div>
                               </div>
 
-                              {/* Customer name + chat icon */}
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
-                                  {appt.conversation_id && (
-                                    <a
-                                      href={`/inbox?c=${appt.conversation_id}`}
-                                      className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
-                                      title="Open Chat in Inbox"
-                                    >
-                                      <MessageSquare className="h-3.5 w-3.5" />
-                                    </a>
-                                  )}
+                              {/* Service and Notes */}
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <span className="font-medium text-foreground">{appt.service?.name}</span>
+                                  <span>•</span>
+                                  <span>{appt.service?.duration_minutes} mins</span>
                                 </div>
-                                <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
+                                {appt.notes && (
+                                  <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
+                                    "{appt.notes}"
+                                  </p>
+                                )}
                               </div>
                             </div>
 
-                            {/* Service and Notes */}
-                            <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                <span className="font-medium text-foreground">{appt.service?.name}</span>
-                                <span>•</span>
-                                <span>{appt.service?.duration_minutes} mins</span>
-                              </div>
-                              {appt.notes && (
-                                <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
-                                  "{appt.notes}"
-                                </p>
+                            {/* Status and Action Column */}
+                            <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
+                              {getSimulatedStatusBadge(appt)}
+
+                              {appt.status === "confirmed" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to cancel this appointment?")) {
+                                      cancel(appt.id);
+                                    }
+                                  }}
+                                  title="Cancel Appointment"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+
+                              {appt.status === "cancelled" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                      deleteAppointment(appt.id);
+                                    }
+                                  }}
+                                  title="Delete Appointment permanently"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               )}
                             </div>
-                          </div>
-
-                          {/* Status and Action Column */}
-                          <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
-                            <Badge
-                              variant={
-                                appt.status === "confirmed"
-                                  ? "default"
-                                  : appt.status === "cancelled"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              className={
-                                appt.status === "confirmed"
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                  : ""
-                              }
-                            >
-                              {appt.status}
-                            </Badge>
-
-                            {appt.status === "confirmed" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to cancel this appointment?")) {
-                                    cancel(appt.id);
-                                  }
-                                }}
-                                title="Cancel Appointment"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            )}
-
-                            {appt.status === "cancelled" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                    deleteAppointment(appt.id);
-                                  }
-                                }}
-                                title="Delete Appointment permanently"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      );
-                    })}
+                          </CardContent>
+                        </Card>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              {/* Right Column: Sidebar Operational Widgets (3 cols) */}
+              <div className="lg:col-span-3 space-y-6">
+                {/* Provider Load Widget */}
+                <Card className="border border-border bg-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" /> Provider Load (Today)
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">Active appointments per doctor today</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {providerLoads.map(({ provider, count }) => (
+                      <div key={provider.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                            {provider.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                          <div className="text-xs">
+                            <p className="font-semibold text-foreground">{provider.name}</p>
+                            <p className="text-[10px] text-muted-foreground">Available today</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="bg-primary/15 text-primary text-xs font-bold px-2 py-0.5 rounded-full border-none">
+                          {count} {count === 1 ? 'booking' : 'bookings'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Upcoming Bookings Widget */}
+                <Card className="border border-border bg-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" /> Upcoming Schedule
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">Next 5 upcoming appointments</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {upcomingFutureBookings.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No upcoming bookings</p>
+                    ) : (
+                      upcomingFutureBookings.map((appt: any) => (
+                        <div key={appt.id} className="p-2.5 rounded-lg bg-muted/20 border border-border space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-foreground bg-muted px-2 py-0.5 rounded">
+                              {formatDateHeader(appt.start_time)}
+                            </span>
+                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                              {formatTimeStr(appt.start_time)}
+                            </span>
+                          </div>
+                          <div className="text-xs">
+                            <p className="font-semibold text-foreground">{appt.contact?.name || "Unknown"}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {appt.service?.name} with {appt.provider?.name}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           ) : viewMode === "timeline" ? (
             /* Roster Timeline View */
@@ -949,12 +1160,7 @@ export function BookingDashboard() {
                                     <span className="text-[9px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
                                       {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
                                     </span>
-                                    <Badge
-                                      variant={appt.status === "confirmed" ? "default" : "destructive"}
-                                      className={`text-[8px] px-1 py-0.5 ${appt.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}`}
-                                    >
-                                      {appt.status}
-                                    </Badge>
+                                    {getSimulatedStatusBadge(appt)}
                                   </div>
                                   <div className="flex items-center justify-between gap-1.5">
                                     <div>
@@ -1064,22 +1270,7 @@ export function BookingDashboard() {
                             {formatDateTime(appt.start_time)}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                appt.status === "confirmed"
-                                  ? "default"
-                                  : appt.status === "cancelled"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              className={
-                                appt.status === "confirmed"
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                  : ""
-                              }
-                            >
-                              {appt.status}
-                            </Badge>
+                            {getSimulatedStatusBadge(appt)}
                           </TableCell>
                           <TableCell className="text-right">
                             {appt.status === "confirmed" && (
@@ -1214,11 +1405,33 @@ export function BookingDashboard() {
                         </Badge>
                       ))}
                     </div>
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
                       <Badge variant="outline" className={p.is_active ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : ""}>
                         {p.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </div>
+                    {(() => {
+                      const totalApptsCount = appointments.filter(a => a.provider?.id === p.id && a.status === 'confirmed').length;
+                      const totalRevenue = appointments
+                        .filter(a => a.provider?.id === p.id && a.status === 'confirmed')
+                        .reduce((acc, a) => {
+                          const srv = services.find(s => s.id === a.service?.id);
+                          return acc + (srv?.price || 0);
+                        }, 0);
+
+                      return (
+                        <div className="mt-4 pt-3 border-t border-border/60 grid grid-cols-2 gap-2 text-center text-[10px] w-full">
+                          <div className="bg-muted/30 p-2 rounded-lg border border-border/40">
+                            <span className="block text-muted-foreground font-medium">Total Bookings</span>
+                            <span className="font-bold text-foreground text-xs">{totalApptsCount}</span>
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded-lg border border-border/40">
+                            <span className="block text-muted-foreground font-medium">Est. Revenue</span>
+                            <span className="font-bold text-emerald-450 text-xs">₹{totalRevenue}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               ))
@@ -1338,6 +1551,23 @@ export function BookingDashboard() {
                         {s.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </div>
+                    {(() => {
+                      const totalBookings = appointments.filter(a => a.service?.id === s.id && a.status === 'confirmed').length;
+                      const totalRev = totalBookings * (s.price || 0);
+
+                      return (
+                        <div className="mt-4 pt-3 border-t border-border/60 grid grid-cols-2 gap-2 text-center text-[10px] w-full">
+                          <div className="bg-muted/30 p-2 rounded-lg border border-border/40">
+                            <span className="block text-muted-foreground font-medium">Total Booked</span>
+                            <span className="font-bold text-foreground text-xs">{totalBookings}</span>
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded-lg border border-border/40">
+                            <span className="block text-muted-foreground font-medium">Revenue</span>
+                            <span className="font-bold text-emerald-450 text-xs">₹{totalRev}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               ))
@@ -1347,7 +1577,8 @@ export function BookingDashboard() {
 
         {/* Tab 4: Availability Scheduler Configuration */}
         <TabsContent value="availability" className="space-y-4">
-          <Card className="border-border bg-card">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="border-border bg-card lg:col-span-2">
             <CardHeader>
               <CardTitle>Availability Settings</CardTitle>
               <CardDescription>Select a resource provider to configure active schedules and vacations.</CardDescription>
@@ -1578,7 +1809,32 @@ export function BookingDashboard() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+
+            {/* Peak Booking Hours Widget */}
+            <Card className="border border-border bg-card h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" /> Peak Booking Hours
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">Times of day with highest booking volume</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {peakHours.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No booking data available</p>
+                ) : (
+                  peakHours.map(({ label, count }) => (
+                    <div key={label} className="p-3 rounded-lg bg-muted/20 border border-border flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">{label}</span>
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-xs font-bold px-2 py-0.5 rounded-full">
+                        {count} {count === 1 ? 'appt' : 'appts'}
+                      </Badge>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
