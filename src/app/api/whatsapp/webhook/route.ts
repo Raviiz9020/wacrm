@@ -873,59 +873,57 @@ async function processMessage(
         .eq('contact_id', contactRecord.id)
         .eq('status', 'confirmed');
 
-      // Helper function to show services for a provider
-      const showServicesForProvider = async (providerId: string) => {
+      // Helper function to show providers for a service
+      const showProvidersForService = async (serviceId: string) => {
         const { data: providerServices } = await supabaseAdmin()
           .from('booking_provider_services')
           .select(`
-            service:booking_services (
+            provider:booking_providers (
               id,
               name,
               is_active
             )
           `)
           .eq('account_id', accountId)
-          .eq('provider_id', providerId);
+          .eq('service_id', serviceId);
 
-        const services = providerServices
-          ?.map((ps: any) => ps.service)
-          .filter((s: any) => s && s.is_active) || [];
+        const providers = providerServices
+          ?.map((ps: any) => ps.provider)
+          .filter((p: any) => p && p.is_active) || [];
 
-        const bookedServiceIds = activeAppts
-          ?.filter((a: any) => a.provider_id === providerId)
-          ?.map((a: any) => a.service_id) || [];
-        const eligibleServices = services.filter((s: any) => !bookedServiceIds.includes(s.id));
+        const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+        const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
 
-        if (eligibleServices.length === 0) {
+        if (eligibleProviders.length === 0) {
           const { engineSendText } = await import('@/lib/flows/meta-send');
           await engineSendText({
             accountId,
             userId: configOwnerUserId,
             conversationId: conversation.id,
             contactId: contactRecord.id,
-            text: 'Sorry, you already have confirmed appointments with this doctor for all their offered services. Please cancel one first.',
+            text: 'Sorry, you already have confirmed appointments with all available doctors for this service. Please cancel one first.',
           });
           bookingSlotsHandled = true;
-        } else if (eligibleServices.length === 1) {
-          // Skip service select, show Day selection directly
-          const serviceId = eligibleServices[0].id;
+        } else if (eligibleProviders.length === 1) {
+          // Skip doctor select, show Day selection directly
+          const providerId = eligibleProviders[0].id;
           await showDaySelect({ providerId, serviceId });
         } else {
-          // Ask which service
+          // Ask which doctor
           const { engineSendInteractiveButtons, engineSendInteractiveList } = await import('@/lib/flows/meta-send');
-          const serviceText = 'Please select a service for your appointment:';
+          const providerText = 'Please select a doctor for your appointment:';
 
-          if (eligibleServices.length <= 3) {
-            const buttons = eligibleServices.map((s: any) => ({
-              id: `book_day_select:${providerId}:${s.id}`,
-              title: s.name.slice(0, 20),
+          if (eligibleProviders.length <= 3) {
+            const buttons = eligibleProviders.map((p: any) => ({
+              id: `book_day_select:${p.id}:${serviceId}`,
+              title: p.name.slice(0, 20),
             }));
             await engineSendInteractiveButtons({
               accountId,
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              bodyText: serviceText,
+              bodyText: providerText,
               buttons,
             });
           } else {
@@ -934,15 +932,15 @@ async function processMessage(
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              bodyText: serviceText,
-              buttonLabel: "Select a Service",
+              bodyText: providerText,
+              buttonLabel: "Select a Doctor",
               sections: [
                 {
-                  title: "Available Services",
-                  rows: eligibleServices.map((s: any) => ({
-                    id: `book_day_select:${providerId}:${s.id}`,
-                    title: s.name.slice(0, 24),
-                    description: `Book ${s.name}`,
+                  title: "Available Doctors",
+                  rows: eligibleProviders.map((p: any) => ({
+                    id: `book_day_select:${p.id}:${serviceId}`,
+                    title: p.name.slice(0, 24),
+                    description: `Book with ${p.name}`,
                   })),
                 },
               ],
@@ -970,18 +968,31 @@ async function processMessage(
       };
 
       if (isDocSelectTrigger) {
-        // Fetch active doctors
-        const { data: activeDoctors } = await supabaseAdmin()
-          .from('booking_providers')
+        // Fetch active services
+        const { data: activeServices } = await supabaseAdmin()
+          .from('booking_services')
           .select('id, name')
           .eq('account_id', accountId)
           .eq('is_active', true)
           .order('name', { ascending: true });
 
-        const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
-        const eligibleProviders = (activeDoctors || []).filter((p: any) => !bookedProviderIds.includes(p.id));
+        // Get all provider-service mappings to verify provider availability
+        const { data: providerServices } = await supabaseAdmin()
+          .from('booking_provider_services')
+          .select('provider_id, service_id');
 
-        if (eligibleProviders.length === 0) {
+        const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+
+        // Filter eligible services (must have at least one unbooked active provider)
+        const eligibleServices = (activeServices || []).filter((srv: any) => {
+          const providersForSrv = (providerServices || [])
+            .filter((ps: any) => ps.service_id === srv.id)
+            .map((ps: any) => ps.provider_id);
+          const unbookedProviders = providersForSrv.filter((pid: any) => !bookedProviderIds.includes(pid));
+          return unbookedProviders.length > 0;
+        });
+
+        if (eligibleServices.length === 0) {
           const { engineSendText } = await import('@/lib/flows/meta-send');
           await engineSendText({
             accountId,
@@ -991,26 +1002,26 @@ async function processMessage(
             text: 'You already have active appointments scheduled. Please cancel one first if you wish to rebook.',
           });
           bookingSlotsHandled = true;
-        } else if (eligibleProviders.length === 1) {
-          // Skip doctor select, show services for this provider
-          const providerId = eligibleProviders[0].id;
-          await showServicesForProvider(providerId);
+        } else if (eligibleServices.length === 1) {
+          // Skip service select, show doctors for this service
+          const serviceId = eligibleServices[0].id;
+          await showProvidersForService(serviceId);
         } else {
-          // Ask which doctor
+          // Ask which service
           const { engineSendInteractiveButtons, engineSendInteractiveList } = await import('@/lib/flows/meta-send');
-          const providerText = 'Please select a doctor for your appointment:';
+          const serviceText = 'Please select a service for your appointment:';
 
-          if (eligibleProviders.length <= 3) {
-            const buttons = eligibleProviders.map((p: any) => ({
-              id: `book_srv_select:${p.id}`,
-              title: p.name.slice(0, 20),
+          if (eligibleServices.length <= 3) {
+            const buttons = eligibleServices.map((s: any) => ({
+              id: `book_srv_select:${s.id}`,
+              title: s.name.slice(0, 20),
             }));
             await engineSendInteractiveButtons({
               accountId,
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              bodyText: providerText,
+              bodyText: serviceText,
               buttons,
             });
           } else {
@@ -1019,15 +1030,15 @@ async function processMessage(
               userId: configOwnerUserId,
               conversationId: conversation.id,
               contactId: contactRecord.id,
-              bodyText: providerText,
-              buttonLabel: "Select a Doctor",
+              bodyText: serviceText,
+              buttonLabel: "Select a Service",
               sections: [
                 {
-                  title: "Available Doctors",
-                  rows: eligibleProviders.map((p: any) => ({
-                    id: `book_srv_select:${p.id}`,
-                    title: p.name.slice(0, 24),
-                    description: `Book with ${p.name}`,
+                  title: "Available Services",
+                  rows: eligibleServices.map((s: any) => ({
+                    id: `book_srv_select:${s.id}`,
+                    title: s.name.slice(0, 24),
+                    description: `Book ${s.name}`,
                   })),
                 },
               ],
@@ -1036,8 +1047,8 @@ async function processMessage(
           bookingSlotsHandled = true;
         }
       } else if (isDocSelectResponse) {
-        const providerId = cleanReplyId.split(':')[1];
-        await showServicesForProvider(providerId);
+        const serviceId = cleanReplyId.split(':')[1];
+        await showProvidersForService(serviceId);
       } else if (isServiceSelectResponse) {
         const parts = cleanReplyId.split(':');
         const providerId = parts[1];
