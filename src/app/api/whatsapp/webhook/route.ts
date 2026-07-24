@@ -871,7 +871,8 @@ async function processMessage(
         .from('booking_appointments')
         .select('provider_id, service_id')
         .eq('contact_id', contactRecord.id)
-        .eq('status', 'confirmed');
+        .eq('status', 'confirmed')
+        .gt('start_time', new Date().toISOString());
 
       // Helper function to show providers for a service
       const showProvidersForService = async (serviceId: string) => {
@@ -891,7 +892,9 @@ async function processMessage(
           ?.map((ps: any) => ps.provider)
           .filter((p: any) => p && p.is_active) || [];
 
-        const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
+        const bookedProviderIds = activeAppts
+          ?.filter((a: any) => a.service_id === serviceId)
+          ?.map((a: any) => a.provider_id) || [];
         const eligibleProviders = providers.filter((p: any) => !bookedProviderIds.includes(p.id));
 
         if (eligibleProviders.length === 0) {
@@ -981,14 +984,15 @@ async function processMessage(
           .from('booking_provider_services')
           .select('provider_id, service_id');
 
-        const bookedProviderIds = activeAppts?.map((a: any) => a.provider_id) || [];
-
         // Filter eligible services (must have at least one unbooked active provider)
         const eligibleServices = (activeServices || []).filter((srv: any) => {
           const providersForSrv = (providerServices || [])
             .filter((ps: any) => ps.service_id === srv.id)
             .map((ps: any) => ps.provider_id);
-          const unbookedProviders = providersForSrv.filter((pid: any) => !bookedProviderIds.includes(pid));
+          const bookedProviderIdsForSrv = activeAppts
+            ?.filter((a: any) => a.service_id === srv.id)
+            ?.map((a: any) => a.provider_id) || [];
+          const unbookedProviders = providersForSrv.filter((pid: any) => !bookedProviderIdsForSrv.includes(pid));
           return unbookedProviders.length > 0;
         });
 
@@ -1260,6 +1264,7 @@ async function processMessage(
         `)
         .eq('contact_id', contactRecord.id)
         .eq('status', 'confirmed')
+        .gt('start_time', new Date().toISOString())
         .order('start_time', { ascending: true })
         .limit(3);
 
