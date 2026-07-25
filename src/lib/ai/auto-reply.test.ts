@@ -236,6 +236,24 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
 })
 
 describe('dispatchInboundToAiReply — handoff', () => {
+  it('triggers handoff on natural phrasing like "connect me with someone who can explain this to me"', async () => {
+    h.buildConversationContext.mockResolvedValue([
+      { role: 'user', content: 'can you please connect me with someone who can explain this to me' }
+    ])
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-1',
+        text: 'Connecting you with a human agent to assist with your request. Please wait a moment...',
+        aiGenerated: true,
+      }),
+    )
+    expect(h.state.updatePayload).toMatchObject({
+      ai_autoreply_disabled: true,
+      status: 'pending',
+    })
+  })
+
   it('disables auto-reply, writes a summary, and sends confirmation text on handoff', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     await dispatchInboundToAiReply(ARGS)

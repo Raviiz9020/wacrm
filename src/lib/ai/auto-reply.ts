@@ -88,9 +88,19 @@ export async function dispatchInboundToAiReply(
     const HANDOFF_KEYWORDS = [
       'human agent', 'talk to human', 'talk to a human', 'speak to human', 'speak to a human',
       'talk to agent', 'speak to agent', 'hand off', 'handoff', 'connect me to human',
-      'connect to agent', 'human support', 'customer service agent', 'representative', 'real person'
+      'connect to agent', 'human support', 'customer service agent', 'representative', 'real person',
+      'connect me with someone', 'connect with someone', 'connect me to someone', 'connect to someone',
+      'talk with someone', 'speak with someone', 'talk to someone', 'speak to someone',
+      'connect me with a person', 'connect me to a person', 'talk to a person', 'speak to a person',
+      'connect me to staff', 'connect me with staff', 'talk to staff', 'speak to staff',
+      'connect me to team', 'connect me with team', 'transfer me', 'transfer to human', 'transfer to agent',
+      'customer service executive', 'support executive', 'talk to specialist', 'connect with expert'
     ]
-    const isExplicitHandoff = HANDOFF_KEYWORDS.some((kw) => latestMsg.includes(kw))
+    const handoffPattern = /(connect|talk|speak|transfer)\s+(me\s+)?(to|with)?\s*(a|an)?\s*(someone|person|human|agent|representative|rep|staff|team|executive|doctor|specialist|expert)/i
+
+    const isExplicitHandoff =
+      HANDOFF_KEYWORDS.some((kw) => latestMsg.includes(kw)) ||
+      handoffPattern.test(latestMsg)
 
     // Helper to execute full handoff sequence
     const performHandoff = async (summaryNote: string) => {
