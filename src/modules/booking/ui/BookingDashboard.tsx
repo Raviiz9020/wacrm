@@ -281,7 +281,8 @@ export function BookingDashboard() {
   const getSimulatedStatusBadge = (appt: Appointment) => {
     if (appt.status === "cancelled") {
       return (
-        <Badge variant="destructive" className="bg-rose-500/10 text-rose-400 border-rose-500/20 text-[10px] font-bold">
+        <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20 text-[10px] font-semibold flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
           cancelled
         </Badge>
       );
@@ -293,7 +294,8 @@ export function BookingDashboard() {
 
     if (end < now) {
       return (
-        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-450 border-emerald-500/20 text-[10px] font-bold">
+        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-semibold flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           completed
         </Badge>
       );
@@ -301,7 +303,7 @@ export function BookingDashboard() {
 
     if (start <= now && end >= now) {
       return (
-        <Badge variant="default" className="bg-emerald-500 text-white border-none flex items-center gap-1 text-[10px] font-bold">
+        <Badge variant="default" className="bg-emerald-600 text-white border-none flex items-center gap-1 text-[10px] font-semibold shrink-0">
           <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
           in session
         </Badge>
@@ -310,15 +312,16 @@ export function BookingDashboard() {
 
     if (start - now > 0 && start - now <= 30 * 60 * 1000) {
       return (
-        <Badge variant="outline" className="bg-amber-500/10 text-amber-450 border-amber-500/20 flex items-center gap-1 text-[10px] font-bold">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-450 animate-pulse" />
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 flex items-center gap-1 text-[10px] font-semibold shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
           arriving soon
         </Badge>
       );
     }
 
     return (
-      <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/20 text-[10px] font-bold">
+      <Badge variant="outline" className="bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 text-[10px] font-semibold flex items-center gap-1 shrink-0">
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
         confirmed
       </Badge>
     );
@@ -802,63 +805,63 @@ export function BookingDashboard() {
           </div>
 
           {/* KPI metrics cards row */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4 my-2">
-            <Card className="border border-border bg-card">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 my-2">
+            <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card hover:shadow-md transition-all duration-200">
+              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="space-y-0.5 sm:space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Today's Bookings</p>
-                  <p className="text-2xl font-bold text-foreground">{todayAppts.length}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{todayAppts.length}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {confirmedToday.length} confirmed • {cancelledToday.length} cancelled
                   </p>
                 </div>
-                <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                  <CalendarDays className="h-5 w-5" />
+                <div className="p-2 sm:p-2.5 bg-primary/15 rounded-xl text-primary shrink-0">
+                  <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-border bg-card">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
+            <Card className="border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-card to-card hover:shadow-md transition-all duration-200">
+              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="space-y-0.5 sm:space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Completed Today</p>
-                  <p className="text-2xl font-bold text-foreground">{passedToday.length}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{passedToday.length}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {remainingTodayCount} remaining today
                   </p>
                 </div>
-                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-450">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <div className="p-2 sm:p-2.5 bg-emerald-500/15 rounded-xl text-emerald-500 shrink-0">
+                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-border bg-card">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
+            <Card className="border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-card to-card hover:shadow-md transition-all duration-200">
+              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="space-y-0.5 sm:space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Providers Active</p>
-                  <p className="text-2xl font-bold text-foreground">{totalActiveProviders}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{totalActiveProviders}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     All available today
                   </p>
                 </div>
-                <div className="p-2 bg-sky-500/10 rounded-lg text-sky-450">
-                  <User className="h-5 w-5 text-sky-400" />
+                <div className="p-2 sm:p-2.5 bg-sky-500/15 rounded-xl text-sky-500 shrink-0">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-border bg-card">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
+            <Card className="border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-card to-card hover:shadow-md transition-all duration-200">
+              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="space-y-0.5 sm:space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Total Future Queue</p>
-                  <p className="text-2xl font-bold text-foreground">{upcomingFutureBookings.length}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{upcomingFutureBookings.length}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     Upcoming queue
                   </p>
                 </div>
-                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-450">
-                  <Clock className="h-5 w-5 text-amber-400" />
+                <div className="p-2 sm:p-2.5 bg-amber-500/15 rounded-xl text-amber-500 shrink-0">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardContent>
             </Card>
@@ -867,9 +870,23 @@ export function BookingDashboard() {
           {loading ? (
             <div className="py-20 text-center text-muted-foreground animate-pulse">Loading appointments...</div>
           ) : filteredAppointments.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground border border-dashed border-border rounded-lg bg-card">
-              <CalendarX2 className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
-              No appointments match the selected filters.
+            <div className="py-16 text-center border border-dashed border-border/80 rounded-2xl bg-card/50 p-6 space-y-4">
+              <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <CalendarX2 className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground text-sm sm:text-base">No appointments found</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  No bookings match your current search and filter settings. Try adjusting your filters or schedule a new appointment.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setIsBookOpen(true)}
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" /> Book Appointment
+              </Button>
             </div>
           ) : viewMode === "agenda" ? (
             /* Grouped Agenda View */
