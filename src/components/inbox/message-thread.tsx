@@ -202,6 +202,7 @@ export function MessageThread({
     }, 700);
   }, [isRefreshing, onRefresh]);
   const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
+  const [suggestedText, setSuggestedText] = useState<string>("");
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -1142,6 +1143,7 @@ export function MessageThread({
         handoffSummary={conversation.ai_handoff_summary}
         assignedAgentId={assignedAgentId}
         currentUserId={user?.id}
+        onUseSuggestedResponse={(t) => setSuggestedText(t)}
         onChange={(patch) => {
           if ("assigned_agent_id" in patch) {
             onAssignChange(conversation.id, patch.assigned_agent_id ?? null);
@@ -1159,6 +1161,7 @@ export function MessageThread({
         onOpenTemplates={handleOpenTemplates}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
+        externalText={suggestedText}
       />
 
       <TemplatePicker

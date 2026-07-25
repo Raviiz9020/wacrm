@@ -118,6 +118,8 @@ interface MessageComposerProps {
   onOpenTemplates: () => void;
   replyTo?: ReplyDraft | null;
   onClearReply?: () => void;
+  /** Text pushed in externally (e.g. from AI Briefing 'Use Suggested Response') */
+  externalText?: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -140,6 +142,7 @@ export function MessageComposer({
   onOpenTemplates,
   replyTo,
   onClearReply,
+  externalText,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
 
@@ -147,6 +150,15 @@ export function MessageComposer({
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (typeof externalText === "string" && externalText.trim()) {
+      setText(externalText);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }
+  }, [externalText]);
 
   // Interactive-message builder dialog + quick-reply picker.
   const [interactiveOpen, setInteractiveOpen] = useState(false);

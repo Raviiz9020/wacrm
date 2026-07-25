@@ -9,6 +9,7 @@ import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { generateStructuredHandoffBriefing } from './handoff-summarizer'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -106,15 +107,49 @@ export async function dispatchInboundToAiReply(
         if (owner) targetAgentId = owner.user_id
       }
 
+      // Generate structured briefing card
+      const structuredSummary = await generateStructuredHandoffBriefing({
+        db,
+        accountId,
+        conversationId,
+        messages,
+        replyCount: conv.ai_reply_count ?? 0,
+      })
+
+      const finalSummary = structuredSummary || summaryNote
+
       const update: Record<string, unknown> = {
         ai_autoreply_disabled: true,
-        ai_handoff_summary: summaryNote,
+        ai_handoff_summary: finalSummary,
         status: 'pending',
       }
       if (targetAgentId && !conv.assigned_agent_id) {
         update.assigned_agent_id = targetAgentId
       }
       await db.from('conversations').update(update).eq('id', conversationId)
+
+      // Optionally log a human-readable note under contact_notes for audit history
+      try {
+        let noteText = `🤖 AI Handoff Briefing`
+        try {
+          const parsed = JSON.parse(finalSummary)
+          if (parsed?.intent) {
+            noteText += `\n📌 Intent: ${parsed.intent}\n📋 Details: ${(parsed.key_details || []).join(', ')}\n🏷️ Sentiment: ${parsed.sentiment || 'Neutral'}\n💡 Recommended Action: ${parsed.recommended_action || 'N/A'}`
+          } else {
+            noteText += `\n${finalSummary}`
+          }
+        } catch {
+          noteText += `\n${finalSummary}`
+        }
+
+        await db.from('contact_notes').insert({
+          contact_id: contactId,
+          user_id: targetAgentId || configOwnerUserId,
+          note_text: noteText,
+        })
+      } catch (e) {
+        console.error('[ai auto-reply] Failed to write contact note on handoff:', e)
+      }
 
       // Send outbound confirmation text to customer's WhatsApp
       await engineSendText({

@@ -42,6 +42,26 @@ async function fetchAiAccountStatus(accountId: string): Promise<AiAccountStatus>
   }
 }
 
+interface ParsedBriefing {
+  intent: string;
+  key_details?: string[];
+  sentiment?: "Urgent" | "Interested" | "Frustrated" | "Neutral";
+  recommended_action?: string;
+}
+
+function parseBriefing(summaryText?: string | null): ParsedBriefing | null {
+  if (!summaryText) return null;
+  try {
+    const parsed = JSON.parse(summaryText);
+    if (parsed && typeof parsed.intent === "string") {
+      return parsed as ParsedBriefing;
+    }
+  } catch {
+    // Plain text fallback
+  }
+  return null;
+}
+
 interface AiThreadBannerProps {
   conversationId: string;
   /** `conversations.ai_autoreply_disabled` — bot paused on this thread. */
@@ -53,38 +73,29 @@ interface AiThreadBannerProps {
   assignedAgentId?: string | null;
   /** The acting agent — "Take over" assigns the thread to them. */
   currentUserId?: string | null;
+  /** Called when agent clicks 'Use Suggested Response' to pre-fill composer. */
+  onUseSuggestedResponse?: (text: string) => void;
   /** Called after a successful toggle so the parent can patch its local
-   *  conversation state (the realtime UPDATE also arrives, but this keeps
-   *  the banner instant). */
+   *  conversation state. */
   onChange?: (patch: {
     ai_autoreply_disabled: boolean;
     assigned_agent_id?: string | null;
   }) => void;
 }
 
-/**
- * Inbox banner that surfaces + controls the AI auto-reply bot per
- * conversation:
- *   - bot active here → "AI is replying automatically" + [Take over]
- *   - bot paused here → the handoff note (if any) + [Resume AI]
- * Renders nothing when the account has no auto-reply configured, or when
- * the bot is active but a human already owns the thread (nothing to do).
- */
 export function AiThreadBanner({
   conversationId,
   disabled,
   handoffSummary,
   assignedAgentId,
   currentUserId,
+  onUseSuggestedResponse,
   onChange,
 }: AiThreadBannerProps) {
   const t = useTranslations("Inbox.aiBanner");
   const { accountId } = useAuth();
   const [autoReplyOn, setAutoReplyOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
-  // Optimistic local mirror of the pause flag so the banner flips
-  // instantly on click; re-seeds whenever the thread (or its server
-  // state via realtime) changes.
   const [paused, setPaused] = useState(disabled);
   useEffect(() => setPaused(disabled), [conversationId, disabled]);
 
@@ -104,7 +115,6 @@ export function AiThreadBanner({
         const res = await fetch(`/api/ai/autoreply/${conversationId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // "Take over" also assigns the thread to the acting agent.
           body: JSON.stringify({ paused, assign_to_me: paused }),
         });
         if (!res.ok) {
@@ -115,9 +125,6 @@ export function AiThreadBanner({
         setPaused(paused);
         onChange?.({
           ai_autoreply_disabled: paused,
-          // Take over assigns to the acting agent; resume releases only
-          // the caller's own assignment. The realtime UPDATE reconciles
-          // the exact value either way.
           ...(paused
             ? currentUserId
               ? { assigned_agent_id: currentUserId }
@@ -134,24 +141,77 @@ export function AiThreadBanner({
     [conversationId, currentUserId, onChange, t],
   );
 
-  // Account has no auto-reply → nothing to show. (Still loading → nothing.)
+  // Account has no auto-reply → nothing to show.
   if (!autoReplyOn) return null;
+
+  const briefing = parseBriefing(handoffSummary);
 
   // Paused here (a human took over, or the model handed off).
   if (paused) {
+    const sentimentColor: Record<string, string> = {
+      Urgent: "bg-red-500/10 text-red-500 border-red-500/20",
+      Frustrated: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      Interested: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      Neutral: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    };
+
     return (
       <Banner tone="muted">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{t("pausedTitle")}</p>
-          {handoffSummary && (
-            <p className="truncate text-muted-foreground" title={handoffSummary}>
-              {handoffSummary}
-            </p>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground">{t("pausedTitle")}</span>
+              {briefing?.sentiment && (
+                <span
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                    sentimentColor[briefing.sentiment] || sentimentColor.Neutral,
+                  )}
+                >
+                  {briefing.sentiment}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {briefing ? (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">📌 {briefing.intent}</p>
+              {briefing.key_details && briefing.key_details.length > 0 && (
+                <ul className="list-inside list-disc space-y-0.5 text-[11px]">
+                  {briefing.key_details.map((detail, idx) => (
+                    <li key={idx} className="truncate">{detail}</li>
+                  ))}
+                </ul>
+              )}
+              {briefing.recommended_action && (
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-muted/60 p-1.5 text-[11px] text-foreground">
+                  <span className="truncate italic">💡 "{briefing.recommended_action}"</span>
+                  {onUseSuggestedResponse && (
+                    <button
+                      type="button"
+                      onClick={() => onUseSuggestedResponse(briefing.recommended_action!)}
+                      className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                    >
+                      ⚡ Use Reply
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            handoffSummary && (
+              <p className="truncate text-muted-foreground" title={handoffSummary}>
+                {handoffSummary}
+              </p>
+            )
           )}
         </div>
-        <BannerButton onClick={() => toggle(false)} busy={busy} icon={Undo2}>
-          {t("resume")}
-        </BannerButton>
+        <div className="shrink-0 self-start">
+          <BannerButton onClick={() => toggle(false)} busy={busy} icon={Undo2}>
+            {t("resume")}
+          </BannerButton>
+        </div>
       </Banner>
     );
   }

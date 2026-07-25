@@ -45,7 +45,11 @@ vi.mock('./admin-client', () => ({
         }
         return chain
       }
-      // conversations
+      if (table === 'contact_notes') {
+        return {
+          insert: () => Promise.resolve({ error: null }),
+        }
+      }
       return {
         select: () => ({
           eq: () => ({
