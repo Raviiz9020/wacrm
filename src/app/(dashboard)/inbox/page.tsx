@@ -615,18 +615,32 @@ export default function InboxPage() {
           />
         </div>
 
-        {/* Right panel: Contact sidebar — desktop only, and only when the
-            agent hasn't collapsed it via the thread-header toggle (#258).
-            On mobile it's always hidden (the `lg:block` below), so the
-            toggle — which is itself desktop-only — never affects it. */}
+        {/* Right panel: Contact sidebar.
+            Desktop (lg+): inline sidebar, shown/hidden by the toggle.
+            Mobile (<lg):  fixed full-screen overlay, slides in from the
+            right when contactPanelOpen is true. Backdrop tap closes it. */}
+        {/* Mobile backdrop */}
         {contactPanelOpen && (
-          <div className="hidden lg:block">
-            <ContactSidebar
-              contact={activeContact}
-              conversationId={activeConversation?.id ?? null}
-            />
-          </div>
+          <div
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            onClick={handleToggleContactPanel}
+            aria-hidden="true"
+          />
         )}
+        {/* Sidebar — always in the DOM when open so the AI chat persists */}
+        <div
+          className={cn(
+            // Mobile: fixed overlay sliding from the right
+            "fixed inset-y-0 right-0 z-50 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 lg:transition-none",
+            // Show/hide on mobile via translate; on desktop via presence
+            contactPanelOpen ? "translate-x-0" : "translate-x-full lg:hidden",
+          )}
+        >
+          <ContactSidebar
+            contact={activeContact}
+            conversationId={activeConversation?.id ?? null}
+          />
+        </div>
       </div>
     </div>
   );
