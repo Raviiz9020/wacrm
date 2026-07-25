@@ -77,13 +77,75 @@ export async function dispatchInboundToAiReply(
     if (conv.ai_autoreply_disabled) return // handed off / turned off here
     // Cheap early-out; the authoritative cap check is the atomic claim
     // below (this read can race a concurrent inbound).
-    if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
-
     const messages = await buildConversationContext(db, conversationId)
     if (messages.length === 0) return
 
-    // Quick static reply guard to bypass LLM and embeddings API for simple greetings/filler
+    // ------------------------------------------------------------
+    // 1. Explicit Handoff Keyword Detector
+    // ------------------------------------------------------------
     const latestMsg = latestUserMessage(messages).trim().toLowerCase()
+    const HANDOFF_KEYWORDS = [
+      'human agent', 'talk to human', 'talk to a human', 'speak to human', 'speak to a human',
+      'talk to agent', 'speak to agent', 'hand off', 'handoff', 'connect me to human',
+      'connect to agent', 'human support', 'customer service agent', 'representative', 'real person'
+    ]
+    const isExplicitHandoff = HANDOFF_KEYWORDS.some((kw) => latestMsg.includes(kw))
+
+    // Helper to execute full handoff sequence
+    const performHandoff = async (summaryNote: string) => {
+      let targetAgentId = config.handoffAgentId
+      if (!targetAgentId && !conv.assigned_agent_id) {
+        // Fallback: assign to account owner/admin if no handoff target configured
+        const { data: owner } = await db
+          .from('profiles')
+          .select('user_id')
+          .eq('account_id', accountId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (owner) targetAgentId = owner.user_id
+      }
+
+      const update: Record<string, unknown> = {
+        ai_autoreply_disabled: true,
+        ai_handoff_summary: summaryNote,
+        status: 'pending',
+      }
+      if (targetAgentId && !conv.assigned_agent_id) {
+        update.assigned_agent_id = targetAgentId
+      }
+      await db.from('conversations').update(update).eq('id', conversationId)
+
+      // Send outbound confirmation text to customer's WhatsApp
+      await engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId,
+        contactId,
+        text: 'Connecting you with a human agent to assist with your request. Please wait a moment...',
+        aiGenerated: true,
+      })
+    }
+
+    if (isExplicitHandoff) {
+      const summary = buildHandoffSummary({
+        messages,
+        replyCount: conv.ai_reply_count ?? 0,
+      })
+      await performHandoff(summary)
+      return
+    }
+
+    // ------------------------------------------------------------
+    // 2. Cap Exhaustion Gate — trigger handoff instead of silent exit
+    // ------------------------------------------------------------
+    if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) {
+      const summary = `🤖 AI bot reached max reply cap (${config.autoReplyMaxPerConversation} replies). Handed off to human agent.`
+      await performHandoff(summary)
+      return
+    }
+
+    // Quick static reply guard to bypass LLM and embeddings API for simple greetings/filler
     const GREETINGS = new Set(['hi', 'hello', 'hey', 'ola', 'yo', 'hlo', 'hllo'])
     const THANKS = new Set(['thanks', 'thank you', 'tq', 'ty'])
     const FAREWELLS = new Set(['bye', 'goodbye', 'tc'])
@@ -109,7 +171,11 @@ export async function dispatchInboundToAiReply(
         console.error('[ai auto-reply] claim_ai_reply_slot failed for static reply:', claimErr)
         return
       }
-      if (claimed !== true) return
+      if (claimed !== true) {
+        const summary = `🤖 AI bot reached max reply cap (${config.autoReplyMaxPerConversation} replies). Handed off to human agent.`
+        await performHandoff(summary)
+        return
+      }
 
       await engineSendText({
         accountId,
@@ -122,11 +188,7 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    // Account-wide throttle on the shared BYO key. The per-conversation
-    // cap bounds one thread; this bounds a burst across many threads (a
-    // marketing blast landing 200 replies at once) so we never run the
-    // owner's key past the provider's rate limit. Over the limit → skip
-    // the auto-reply; the inbound still sits in the inbox for a human.
+    // Account-wide throttle on the shared BYO key.
     const acctLimit = checkRateLimit(
       `ai-autoreply:${accountId}`,
       RATE_LIMITS.aiAutoReplyAccount,
@@ -158,11 +220,7 @@ export async function dispatchInboundToAiReply(
       messages,
     })
 
-    // Record token spend on the account's BYO key. Fire-and-forget so it
-    // never adds latency to the customer-facing send: `logAiUsage`
-    // swallows its own errors, so the floating promise can't reject.
-    // Logged regardless of handoff — the provider call happened either
-    // way.
+    // Record token spend on the account's BYO key.
     void logAiUsage(db, {
       accountId,
       conversationId,
@@ -173,35 +231,15 @@ export async function dispatchInboundToAiReply(
     })
 
     if (handoff || !text) {
-      // The model can't (or shouldn't) answer — stop auto-replying on
-      // this thread and hand it to a human. We (a) pause the bot here
-      // (sticky until re-enabled), (b) route the conversation to the
-      // configured handoff agent — null leaves it in the shared queue —
-      // and (c) leave a short internal note so whoever picks it up has
-      // context. Assigning fires the `on_conversation_assigned` trigger,
-      // which notifies the agent.
       const summary = buildHandoffSummary({
         messages,
         replyCount: conv.ai_reply_count ?? 0,
       })
-      const update: Record<string, unknown> = {
-        ai_autoreply_disabled: true,
-        ai_handoff_summary: summary,
-      }
-      // Only set the assignee when a target is configured AND the thread
-      // isn't already owned — never stomp an existing human assignment.
-      if (config.handoffAgentId && !conv.assigned_agent_id) {
-        update.assigned_agent_id = config.handoffAgentId
-      }
-      await db.from('conversations').update(update).eq('id', conversationId)
+      await performHandoff(summary)
       return
     }
 
-    // Atomically claim a reply slot: the cap check + increment happen in
-    // one UPDATE, so concurrent inbounds can never overshoot the cap. If
-    // another inbound just took the last slot, `claimed` is false and we
-    // skip the send. (We consume a slot slightly before the send lands —
-    // fail-safe: under-reply rather than over-reply.)
+    // Atomically claim a reply slot
     const { data: claimed, error: claimErr } = await db.rpc(
       'claim_ai_reply_slot',
       {
@@ -210,14 +248,14 @@ export async function dispatchInboundToAiReply(
       },
     )
     if (claimErr) {
-      // A real error here (vs. losing the cap race) is almost always a
-      // deploy issue — e.g. `claim_ai_reply_slot` not EXECUTE-able by the
-      // service role, or the migration not applied. Log it loudly: a
-      // silent return makes "auto-reply never fires" undiagnosable.
       console.error('[ai auto-reply] claim_ai_reply_slot failed:', claimErr)
       return
     }
-    if (claimed !== true) return // lost the per-conversation cap race
+    if (claimed !== true) {
+      const summary = `🤖 AI bot reached max reply cap (${config.autoReplyMaxPerConversation} replies). Handed off to human agent.`
+      await performHandoff(summary)
+      return
+    }
 
     await engineSendText({
       accountId,

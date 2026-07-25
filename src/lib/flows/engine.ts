@@ -436,11 +436,39 @@ async function executeHandoff(
   node: FlowNodeRow,
 ): Promise<void> {
   const cfg = node.config as { assign_to?: string; note?: string };
+  
+  let targetAgentId = cfg.assign_to ?? null;
+
+  if (!targetAgentId && run.account_id) {
+    // 1. Try account's AI config handoff_agent_id
+    const { data: aiConf } = await db
+      .from("ai_configs")
+      .select("handoff_agent_id")
+      .eq("account_id", run.account_id)
+      .maybeSingle();
+    if (aiConf?.handoff_agent_id) {
+      targetAgentId = aiConf.handoff_agent_id;
+    } else {
+      // 2. Fallback to account owner profile
+      const { data: owner } = await db
+        .from("profiles")
+        .select("user_id")
+        .eq("account_id", run.account_id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (owner) targetAgentId = owner.user_id;
+    }
+  }
+
   const convUpdate: Record<string, unknown> = {
     status: "pending",
+    ai_autoreply_disabled: true,
+    ai_handoff_summary: cfg.note ?? "Handed off to human agent via Flow.",
     updated_at: new Date().toISOString(),
   };
-  if (cfg.assign_to) convUpdate.assigned_agent_id = cfg.assign_to;
+  if (targetAgentId) convUpdate.assigned_agent_id = targetAgentId;
+
   if (run.conversation_id) {
     await db
       .from("conversations")
@@ -449,7 +477,7 @@ async function executeHandoff(
   }
   await logEvent(db, run.id, "handoff", node.node_key, {
     note: cfg.note ?? null,
-    assigned_to: cfg.assign_to ?? null,
+    assigned_to: targetAgentId,
   });
   await endRun(db, run.id, "handed_off", "handoff_node");
 }

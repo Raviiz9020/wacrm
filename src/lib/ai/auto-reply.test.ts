@@ -26,13 +26,22 @@ vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
     from: (table: string) => {
       if (table === 'automations') {
-        // .select().eq().eq().in().limit() → active auto-responders
         const chain = {
           select: () => chain,
           eq: () => chain,
           in: () => chain,
           limit: () =>
             Promise.resolve({ data: h.state.autoResponders, error: null }),
+        }
+        return chain
+      }
+      if (table === 'profiles') {
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          order: () => chain,
+          limit: () => chain,
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
         }
         return chain
       }
@@ -127,12 +136,18 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(h.engineSendText).not.toHaveBeenCalled()
   })
 
-  it('does not send when the atomic slot claim loses the race', async () => {
+  it('triggers handoff when the atomic slot claim loses the race', async () => {
     h.state.claim = false
     await dispatchInboundToAiReply(ARGS)
-    // It still attempts the claim, but the send is skipped.
+    // It still attempts the claim, then hands off.
     expect(h.state.rpcCalls).toHaveLength(1)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-1',
+        text: 'Connecting you with a human agent to assist with your request. Please wait a moment...',
+        aiGenerated: true,
+      }),
+    )
   })
 
   it('skips when AI is off / not configured', async () => {
@@ -168,14 +183,20 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(h.engineSendText).not.toHaveBeenCalled()
   })
 
-  it('skips when the per-conversation cap is reached', async () => {
+  it('triggers handoff when the per-conversation cap is reached', async () => {
     h.state.conv = {
       assigned_agent_id: null,
       ai_autoreply_disabled: false,
       ai_reply_count: 3,
     }
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-1',
+        text: 'Connecting you with a human agent to assist with your request. Please wait a moment...',
+        aiGenerated: true,
+      }),
+    )
   })
 
   it('skips when there is nothing to reply to', async () => {
@@ -211,17 +232,21 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
 })
 
 describe('dispatchInboundToAiReply — handoff', () => {
-  it('disables auto-reply, writes a summary, and does not send on handoff', async () => {
+  it('disables auto-reply, writes a summary, and sends confirmation text on handoff', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-1',
+        text: 'Connecting you with a human agent to assist with your request. Please wait a moment...',
+        aiGenerated: true,
+      }),
+    )
     expect(h.state.rpcCalls).toHaveLength(0)
-    expect(h.state.updatePayload).toMatchObject({ ai_autoreply_disabled: true })
+    expect(h.state.updatePayload).toMatchObject({ ai_autoreply_disabled: true, status: 'pending' })
     expect(h.state.updatePayload?.ai_handoff_summary).toContain(
       'AI agent handed off',
     )
-    // No handoff target configured → conversation left unassigned.
-    expect(h.state.updatePayload).not.toHaveProperty('assigned_agent_id')
   })
 
   it('routes to the configured handoff agent on handoff', async () => {
@@ -231,6 +256,7 @@ describe('dispatchInboundToAiReply — handoff', () => {
     expect(h.state.updatePayload).toMatchObject({
       ai_autoreply_disabled: true,
       assigned_agent_id: 'agent-7',
+      status: 'pending',
     })
   })
 })
