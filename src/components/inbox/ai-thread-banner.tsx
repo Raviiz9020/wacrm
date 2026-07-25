@@ -178,20 +178,20 @@ export function AiThreadBanner({
             <div className="space-y-1 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">📌 {briefing.intent}</p>
               {briefing.key_details && briefing.key_details.length > 0 && (
-                <ul className="list-inside list-disc space-y-0.5 text-[11px]">
+                <ul className="list-inside list-disc space-y-1 text-[11px]">
                   {briefing.key_details.map((detail, idx) => (
-                    <li key={idx} className="truncate">{detail}</li>
+                    <li key={idx} className="break-words leading-snug">{detail}</li>
                   ))}
                 </ul>
               )}
               {briefing.recommended_action && (
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-muted/60 p-1.5 text-[11px] text-foreground">
-                  <span className="truncate italic">💡 "{briefing.recommended_action}"</span>
+                <div className="mt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-md bg-muted/60 p-2 text-[11px] text-foreground">
+                  <span className="italic break-words leading-snug">💡 "{briefing.recommended_action}"</span>
                   {onUseSuggestedResponse && (
                     <button
                       type="button"
                       onClick={() => onUseSuggestedResponse(briefing.recommended_action!)}
-                      className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                      className="shrink-0 self-end sm:self-auto rounded bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"
                     >
                       ⚡ Use Reply
                     </button>
