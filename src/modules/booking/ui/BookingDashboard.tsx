@@ -1595,33 +1595,38 @@ export function BookingDashboard() {
         {/* Tab 4: Availability Scheduler Configuration */}
         <TabsContent value="availability" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Main Card: Resource Provider Selector & Weekly Schedule */}
             <Card className="border-border bg-card lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Availability Settings</CardTitle>
-              <CardDescription>Select a resource provider to configure active schedules and vacations.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-2 max-w-[400px]">
-                <Label htmlFor="sched_provider">Resource Provider</Label>
-                <Select value={schedProviderId} onValueChange={val => setSchedProviderId(val || "")}>
-                  <SelectTrigger className="border-border">
-                    <span className="text-sm text-foreground">
-                      {providers.find(p => p.id === schedProviderId)?.name || "Select staff..."}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent className="border-border bg-card">
-                    {providers.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <CardHeader>
+                <CardTitle>Availability Settings</CardTitle>
+                <CardDescription>Select a resource provider to configure weekly recurring schedules.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-2 max-w-[400px]">
+                  <Label htmlFor="sched_provider">Resource Provider</Label>
+                  <Select value={schedProviderId} onValueChange={val => setSchedProviderId(val || "")}>
+                    <SelectTrigger className="border-border">
+                      <span className="text-sm text-foreground">
+                        {providers.find(p => p.id === schedProviderId)?.name || "Select staff..."}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent className="border-border bg-card">
+                      {providers.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {schedProviderId && (
-                <div className="grid gap-6 md:grid-cols-2 pt-4 border-t border-border">
-                  {/* Weekly Schedules */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-foreground">Weekly Recurring Schedule</h4>
+                {schedProviderId && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-foreground">Weekly Recurring Schedule</h4>
+                      <Button onClick={handleSaveSchedules} size="sm" className="gap-1">
+                        Save Business Hours
+                      </Button>
+                    </div>
+                    
                     <div className="space-y-3">
                       {[
                         { day: 1, label: "Monday" },
@@ -1632,8 +1637,8 @@ export function BookingDashboard() {
                         { day: 6, label: "Saturday" },
                         { day: 0, label: "Sunday" },
                       ].map(({ day, label }) => (
-                        <div key={day} className="flex items-center justify-between gap-4 p-2 border border-border rounded-md bg-muted/20">
-                          <div className="flex items-center gap-2">
+                        <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border border-border/80 rounded-xl bg-muted/20">
+                          <div className="flex items-center gap-3 shrink-0">
                             <Switch
                               checked={weeklySchedules[day]?.active || false}
                               onCheckedChange={checked => {
@@ -1643,46 +1648,49 @@ export function BookingDashboard() {
                                 }));
                               }}
                             />
-                            <span className="text-sm font-medium">{label}</span>
+                            <span className="text-sm font-semibold text-foreground min-w-[90px]">{label}</span>
                           </div>
-                          
-                          {weeklySchedules[day]?.active && (
-                            <div className="flex flex-col gap-1.5 w-[360px]">
+
+                          {weeklySchedules[day]?.active ? (
+                            <div className="flex flex-col gap-2 min-w-0 flex-1 sm:max-w-[340px]">
                               {(weeklySchedules[day].shifts || []).map((shift, idx) => (
-                                <div key={idx} className="flex items-center gap-1.5 justify-end">
-                                  <div className="flex flex-col items-center">
-                                    <Input
-                                      type="time"
-                                      className="w-[130px] border-border h-7 text-xs px-2"
-                                      value={shift.start}
-                                      onChange={e => {
-                                        const newShifts = [...weeklySchedules[day].shifts];
-                                        newShifts[idx] = { ...shift, start: e.target.value };
-                                        setWeeklySchedules(prev => ({
-                                          ...prev,
-                                          [day]: { ...prev[day], shifts: newShifts },
-                                        }));
-                                      }}
-                                    />
-                                    <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.start)}</span>
+                                <div key={idx} className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                                  <div className="flex items-center gap-1.5 bg-card p-1 px-2 rounded-md border border-border">
+                                    <div className="flex flex-col items-center">
+                                      <Input
+                                        type="time"
+                                        className="w-[105px] border-border h-7 text-xs px-1"
+                                        value={shift.start}
+                                        onChange={e => {
+                                          const newShifts = [...weeklySchedules[day].shifts];
+                                          newShifts[idx] = { ...shift, start: e.target.value };
+                                          setWeeklySchedules(prev => ({
+                                            ...prev,
+                                            [day]: { ...prev[day], shifts: newShifts },
+                                          }));
+                                        }}
+                                      />
+                                      <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.start)}</span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground font-medium">to</span>
+                                    <div className="flex flex-col items-center">
+                                      <Input
+                                        type="time"
+                                        className="w-[105px] border-border h-7 text-xs px-1"
+                                        value={shift.end}
+                                        onChange={e => {
+                                          const newShifts = [...weeklySchedules[day].shifts];
+                                          newShifts[idx] = { ...shift, end: e.target.value };
+                                          setWeeklySchedules(prev => ({
+                                            ...prev,
+                                            [day]: { ...prev[day], shifts: newShifts },
+                                          }));
+                                        }}
+                                      />
+                                      <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.end)}</span>
+                                    </div>
                                   </div>
-                                  <span className="text-[10px] text-muted-foreground pb-4">to</span>
-                                  <div className="flex flex-col items-center">
-                                    <Input
-                                      type="time"
-                                      className="w-[130px] border-border h-7 text-xs px-2"
-                                      value={shift.end}
-                                      onChange={e => {
-                                        const newShifts = [...weeklySchedules[day].shifts];
-                                        newShifts[idx] = { ...shift, end: e.target.value };
-                                        setWeeklySchedules(prev => ({
-                                          ...prev,
-                                          [day]: { ...prev[day], shifts: newShifts },
-                                        }));
-                                      }}
-                                    />
-                                    <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(shift.end)}</span>
-                                  </div>
+
                                   {weeklySchedules[day].shifts.length > 1 && (
                                     <Button
                                       variant="ghost"
@@ -1694,14 +1702,14 @@ export function BookingDashboard() {
                                           [day]: { ...prev[day], shifts: newShifts },
                                         }));
                                       }}
-                                      className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 pb-4"
+                                      className="h-7 w-7 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 shrink-0"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   )}
                                 </div>
                               ))}
-                              <div className="flex justify-end pr-2">
+                              <div className="flex justify-end pr-1">
                                 <Button
                                   variant="link"
                                   size="sm"
@@ -1718,139 +1726,148 @@ export function BookingDashboard() {
                                 </Button>
                               </div>
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground font-medium italic">Closed</span>
                           )}
                         </div>
                       ))}
                     </div>
-                    <Button onClick={handleSaveSchedules} size="sm">Save Business Hours</Button>
                   </div>
-
-                  {/* Schedule Overrides */}
-                  <div className="space-y-4 p-4 border border-border rounded-md bg-muted/10 h-fit">
-                    <h4 className="text-sm font-bold text-foreground">Schedule Overrides & Time Off</h4>
-                    <p className="text-xs text-muted-foreground">Define vacations, leaves, or temporary hours.</p>
-                    <div className="grid gap-3 pt-2">
-                      <div className="grid gap-1">
-                        <Label htmlFor="ov_date">Select Date</Label>
-                        <Input
-                          type="date"
-                          id="ov_date"
-                          className="border-border"
-                          value={overrideDate}
-                          onChange={e => setOverrideDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between p-2 border border-border rounded bg-card mt-2">
-                        <span className="text-xs font-semibold">Available for Booking?</span>
-                        <Switch
-                          checked={overrideAvailable}
-                          onCheckedChange={setOverrideAvailable}
-                        />
-                      </div>
-                      {overrideAvailable && (
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                          <div className="grid gap-1">
-                            <Label htmlFor="ov_start" className="text-xs">Start Time</Label>
-                            <Input
-                              type="time"
-                              id="ov_start"
-                              className="border-border h-8 text-xs"
-                              value={overrideStart}
-                              onChange={e => setOverrideStart(e.target.value)}
-                            />
-                            <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(overrideStart)}</span>
-                          </div>
-                          <div className="grid gap-1">
-                            <Label htmlFor="ov_end" className="text-xs">End Time</Label>
-                            <Input
-                              type="time"
-                              id="ov_end"
-                              className="border-border h-8 text-xs"
-                              value={overrideEnd}
-                              onChange={e => setOverrideEnd(e.target.value)}
-                            />
-                            <span className="text-[9px] text-muted-foreground font-mono mt-0.5">{getFriendlyTime12Hour(overrideEnd)}</span>
-                          </div>
-                        </div>
-                      )}
-                      <Button onClick={handleSaveOverride} variant="secondary" size="sm" className="mt-2" disabled={!overrideDate}>
-                        Set Override
-                      </Button>
-                      
-                      {/* Active overrides list */}
-                      {overrideList.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-border space-y-2">
-                          <h5 className="text-xs font-bold text-foreground">Current Overrides & Time Off:</h5>
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                            {overrideList.map(ov => {
-                              // Render local timezone safe date representation
-                              const [yStr, mStr, dStr] = ov.override_date.split("-").map(Number);
-                              const dateObj = new Date(yStr, mStr - 1, dStr);
-                              const formattedDate = dateObj.toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              });
-                              return (
-                                <div key={ov.id} className="flex items-center justify-between text-xs p-2 border border-border rounded bg-card hover:bg-muted/5 transition-colors">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="font-semibold">{formattedDate}</span>
-                                    <span>
-                                      {ov.is_available ? (
-                                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-0.5 px-1.5 rounded">
-                                          {ov.start_time.slice(0, 5)} - {ov.end_time.slice(0, 5)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 py-0.5 px-1.5 rounded">
-                                          Time Off (Closed)
-                                        </span>
-                                      )}
-                                    </span>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDeleteOverride(ov.id)}
-                                    className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-            </Card>
-
-            {/* Peak Booking Hours Widget */}
-            <Card className="border border-border bg-card h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" /> Peak Booking Hours
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">Times of day with highest booking volume</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {peakHours.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No booking data available</p>
-                ) : (
-                  peakHours.map(({ label, count }) => (
-                    <div key={label} className="p-3 rounded-lg bg-muted/20 border border-border flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">{label}</span>
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-xs font-bold px-2 py-0.5 rounded-full">
-                        {count} {count === 1 ? 'appt' : 'appts'}
-                      </Badge>
-                    </div>
-                  ))
                 )}
               </CardContent>
             </Card>
+
+            {/* Right Column: Schedule Overrides & Peak Hours */}
+            <div className="space-y-6">
+              {schedProviderId && (
+                <Card className="border border-border bg-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-foreground">
+                      Schedule Overrides & Time Off
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      Define vacations, leaves, or temporary hours for this provider.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="ov_date" className="text-xs">Select Date</Label>
+                      <Input
+                        type="date"
+                        id="ov_date"
+                        className="border-border text-xs"
+                        value={overrideDate}
+                        onChange={e => setOverrideDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 border border-border rounded-lg bg-muted/20">
+                      <span className="text-xs font-semibold">Available for Booking?</span>
+                      <Switch
+                        checked={overrideAvailable}
+                        onCheckedChange={setOverrideAvailable}
+                      />
+                    </div>
+                    {overrideAvailable && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="grid gap-1">
+                          <Label htmlFor="ov_start" className="text-xs">Start Time</Label>
+                          <Input
+                            type="time"
+                            id="ov_start"
+                            className="border-border h-8 text-xs px-1.5"
+                            value={overrideStart}
+                            onChange={e => setOverrideStart(e.target.value)}
+                          />
+                          <span className="text-[9px] text-muted-foreground font-mono">{getFriendlyTime12Hour(overrideStart)}</span>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label htmlFor="ov_end" className="text-xs">End Time</Label>
+                          <Input
+                            type="time"
+                            id="ov_end"
+                            className="border-border h-8 text-xs px-1.5"
+                            value={overrideEnd}
+                            onChange={e => setOverrideEnd(e.target.value)}
+                          />
+                          <span className="text-[9px] text-muted-foreground font-mono">{getFriendlyTime12Hour(overrideEnd)}</span>
+                        </div>
+                      </div>
+                    )}
+                    <Button onClick={handleSaveOverride} variant="secondary" size="sm" className="w-full text-xs" disabled={!overrideDate}>
+                      Set Override
+                    </Button>
+                    
+                    {/* Active overrides list */}
+                    {overrideList.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-2">
+                        <h5 className="text-xs font-bold text-foreground">Current Overrides & Time Off:</h5>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {overrideList.map(ov => {
+                            const [yStr, mStr, dStr] = ov.override_date.split("-").map(Number);
+                            const dateObj = new Date(yStr, mStr - 1, dStr);
+                            const formattedDate = dateObj.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            });
+                            return (
+                              <div key={ov.id} className="flex items-center justify-between text-xs p-2 border border-border rounded bg-card hover:bg-muted/5 transition-colors">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-semibold">{formattedDate}</span>
+                                  <span>
+                                    {ov.is_available ? (
+                                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-0.5 px-1.5 rounded">
+                                        {ov.start_time.slice(0, 5)} - {ov.end_time.slice(0, 5)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 py-0.5 px-1.5 rounded">
+                                        Time Off (Closed)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteOverride(ov.id)}
+                                  className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Peak Booking Hours Widget */}
+              <Card className="border border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" /> Peak Booking Hours
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">Times of day with highest booking volume</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {peakHours.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">No booking data available</p>
+                  ) : (
+                    peakHours.map(({ label, count }) => (
+                      <div key={label} className="p-3 rounded-lg bg-muted/20 border border-border flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">{label}</span>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-xs font-bold px-2 py-0.5 rounded-full">
+                          {count} {count === 1 ? 'appt' : 'appts'}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
