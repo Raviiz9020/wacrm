@@ -6,6 +6,7 @@ export interface BookingInput {
   providerId: string;
   serviceId: string;
   contactId: string;
+  assetId?: string | null;
   conversationId?: string | null;
   dateStr: string;        // YYYY-MM-DD
   startTimeStr: string;   // HH:MM:SS
@@ -43,7 +44,7 @@ export async function createAppointment(
   input: BookingInput,
   client = supabaseAdmin()
 ) {
-  const { accountId, providerId, serviceId, contactId, conversationId, dateStr, startTimeStr, notes } = input;
+  const { accountId, providerId, serviceId, contactId, assetId, conversationId, dateStr, startTimeStr, notes } = input;
 
   // 1. Fetch service details to get duration
   const { data: service, error: serviceErr } = await client
@@ -83,6 +84,7 @@ export async function createAppointment(
       provider_id: providerId,
       service_id: serviceId,
       contact_id: contactId,
+      asset_id: assetId || null,
       conversation_id: conversationId || null,
       start_time: startTimeUTC,
       end_time: endTimeUTC,

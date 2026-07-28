@@ -648,3 +648,69 @@ export interface QuickReply {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Customer Assets & Service OS Platform Extensions (migration 041)
+// ============================================================
+
+export interface AssetType {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  schema_definition: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerAsset {
+  id: string;
+  account_id: string;
+  contact_id: string;
+  asset_type_id?: string | null;
+  identifier_code?: string | null;
+  name: string;
+  attributes: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerAssetHistory {
+  id: string;
+  account_id: string;
+  asset_id: string;
+  appointment_id?: string | null;
+  service_id: string;
+  service_date: string;
+  warranty_expiry_date?: string | null;
+  next_recommended_service_date?: string | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface BookingServicePriceMatrix {
+  id: string;
+  account_id: string;
+  service_id: string;
+  attribute_key: string;
+  attribute_value: string;
+  price: number;
+  duration_minutes?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PortfolioMedia {
+  id: string;
+  account_id: string;
+  title: string;
+  category: string;
+  media_url: string;
+  media_type: 'image' | 'video';
+  metadata?: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+

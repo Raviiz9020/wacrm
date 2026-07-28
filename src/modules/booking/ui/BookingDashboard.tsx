@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List, XCircle } from "lucide-react";
 import { useBooking, type Provider, type Service, type Appointment } from "../hooks/useBooking"; // corrected hook path
+import { MatrixPricingModal } from "./MatrixPricingModal";
+import { PortfolioMediaManager } from "./PortfolioMediaManager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import type { TimeSlot } from "../services/slotGenerator";
 
 export function BookingDashboard() {
+  const { account } = useAuth();
   const {
     providers,
     services,
@@ -711,6 +715,7 @@ export function BookingDashboard() {
           <TabsTrigger value="appointments" className="shrink-0">Appointments</TabsTrigger>
           <TabsTrigger value="resources" className="shrink-0">Resources</TabsTrigger>
           <TabsTrigger value="services" className="shrink-0">Services</TabsTrigger>
+          <TabsTrigger value="portfolio" className="shrink-0">Portfolio Gallery</TabsTrigger>
           <TabsTrigger value="availability" className="shrink-0">Availability Scheduler</TabsTrigger>
         </TabsList>
 
@@ -1561,12 +1566,19 @@ export function BookingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground mb-3">{s.description || "No description set"}</p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary">{s.duration_minutes} mins</Badge>
                       {s.price && <Badge variant="outline" className="border-primary/20 text-primary">₹{s.price}</Badge>}
                       <Badge variant="outline" className={s.is_active ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : ""}>
                         {s.is_active ? "Active" : "Inactive"}
                       </Badge>
+                      <MatrixPricingModal
+                        accountId={account?.id || ""}
+                        serviceId={s.id}
+                        serviceName={s.name}
+                        basePrice={s.price || 0}
+                        currency={s.currency || "INR"}
+                      />
                     </div>
                     {(() => {
                       const totalBookings = appointments.filter(a => a.service?.id === s.id && a.status === 'confirmed').length;
@@ -1590,6 +1602,11 @@ export function BookingDashboard() {
               ))
             )}
           </div>
+        </TabsContent>
+
+        {/* Tab 4: Portfolio Gallery Showcase */}
+        <TabsContent value="portfolio" className="space-y-4">
+          <PortfolioMediaManager accountId={account?.id || ""} />
         </TabsContent>
 
         {/* Tab 4: Availability Scheduler Configuration */}

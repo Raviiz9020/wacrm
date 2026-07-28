@@ -5,6 +5,7 @@ import type { TimeSlot } from '../services/slotGenerator';
 
 export interface Provider {
   id: string;
+  account_id?: string;
   name: string;
   description: string | null;
   profile_id: string | null;
@@ -14,6 +15,7 @@ export interface Provider {
 
 export interface Service {
   id: string;
+  account_id?: string;
   name: string;
   description: string | null;
   duration_minutes: number;

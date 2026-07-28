@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperAgent AI — Car Detailing Studio Solution</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: #111827;
+            --bg-glass: rgba(17, 24, 39, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --accent-primary: #3b82f6;
+            --accent-glow: #60a5fa;
+            --accent-emerald: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --wa-green: #25D366;
+            --wa-bg: #0b141a;
+            --wa-bubble-in: #202c33;
+            --wa-bubble-out: #005c4b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+        }
+
+        h1, h2, h3, h4, .brand-text {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 5%;
+            background: rgba(9, 13, 22, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 5rem 5% 3rem;
+            text-align: center;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .pill-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 30px;
+            color: var(--accent-glow);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 750px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.7);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid var(--border-glass);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Problem & Solution Grid */
+        .section-title {
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 4rem 0 1rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 5%;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-problem {
+            border-top: 4px solid #ef4444;
+        }
+
+        .card-solution {
+            border-top: 4px solid var(--accent-emerald);
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, var(--bg-card) 100%);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .icon-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .icon-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+
+        .list-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1rem;
+            align-items: flex-start;
+        }
+
+        .list-item span {
+            font-weight: 600;
+        }
+
+        /* Demo Section (WhatsApp Simulation) */
+        .demo-container {
+            max-width: 1200px;
+            margin: 4rem auto;
+            padding: 0 5%;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .phone-mockup {
+            background: #000;
+            border-radius: 40px;
+            border: 8px solid #222;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(37, 211, 102, 0.2);
+            overflow: hidden;
+            height: 680px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-header {
+            background: #1f2c34;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+        }
+
+        .contact-info h4 { font-size: 0.95rem; color: #fff; }
+        .contact-info p { font-size: 0.75rem; color: var(--accent-emerald); }
+
+        .chat-body {
+            background: var(--wa-bg);
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0);
+            background-size: 16px 16px;
+        }
+
+        .msg {
+            max-width: 82%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            position: relative;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-in {
+            background: var(--wa-bubble-in);
+            color: #e9edef;
+            align-self: flex-start;
+            border-top-left-radius: 2px;
+        }
+
+        .msg-out {
+            background: var(--wa-bubble-out);
+            color: #e9edef;
+            align-self: flex-end;
+            border-top-right-radius: 2px;
+        }
+
+        .msg-time {
+            font-size: 0.65rem;
+            color: rgba(241, 245, 249, 0.6);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .media-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .media-card {
+            height: 110px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 6px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .media-badge {
+            align-self: flex-start;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-before {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .badge-after {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .media-sub {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        }
+
+        .chat-controls {
+            padding: 1rem;
+            background: #1f2c34;
+            display: flex;
+            gap: 8px;
+        }
+
+        .step-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .step-btn.active {
+            background: var(--wa-green);
+            color: #000;
+        }
+
+        /* Matrix Calculator Interactive */
+        .calculator-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin: 4rem 5%;
+        }
+
+        .cat-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0 2rem;
+        }
+
+        .cat-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-glass);
+            padding: 1.2rem 1rem;
+            border-radius: 14px;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .cat-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-glow);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .cat-btn h4 { font-size: 1.1rem; margin-bottom: 4px; }
+        .cat-btn p { font-size: 0.8rem; color: var(--text-muted); }
+
+        .price-output-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .price-box {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-glass);
+            padding: 1.5rem;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .price-box h5 { color: var(--text-muted); margin-bottom: 8px; font-size: 0.9rem; }
+        .price-val { font-size: 1.8rem; font-weight: 800; color: #fff; }
+        .price-val span { font-size: 0.9rem; color: var(--text-muted); font-weight: 400; }
+
+        /* Feature Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 5%;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 1.8rem;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 { font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+        .feature-card p { font-size: 0.9rem; color: var(--text-muted); }
+
+        /* Feedback section for client */
+        .feedback-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 1100px;
+            margin: 4rem auto;
+            text-align: center;
+        }
+
+        .feedback-box h2 { font-size: 2rem; margin-bottom: 1rem; }
+
+        .checklist {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            text-align: left;
+            max-width: 800px;
+            margin: 2rem auto 0;
+        }
+
+        .check-item {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-glass);
+            padding: 2rem 5%;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Responsiveness for Android & iOS */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.2rem; }
+            .hero p { font-size: 1.05rem; }
+            .grid-2, .demo-container, .features-grid, .checklist, .price-output-grid {
+                grid-template-columns: 1fr;
+            }
+            .cat-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .phone-mockup {
+                height: 580px;
+            }
+            .nav-links {
+                display: none;
+            }
+            .hero {
+                padding: 3rem 5% 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav>
+        <div class="logo">
+            ⚡ HyperAgent AI
+            <span class="logo-badge">Auto Business OS</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#problem">Problem & Solution</a></li>
+            <li><a href="#simulator">Live WhatsApp Demo</a></li>
+            <li><a href="#calculator">Matrix Pricing</a></li>
+            <li><a href="#features">Core Features</a></li>
+            <li><a href="#feedback">Studio Assessment</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="pill-tag">
+            <span>✨ Service Extension Blueprint</span> • Car Detailing & Auto Spa
+        </div>
+        <h1>Turn WhatsApp into a <span>24/7 AI Sales Engine</span> for Car Detailing</h1>
+        <p>Instantly qualify vehicle models, calculate matrix pricing for Hatchbacks/SUVs, send past portfolio work, book detailing bay slots, and auto-remind customers 6 months later.</p>
+        <div class="btn-group">
+            <a href="#simulator" class="btn btn-primary">Try Live Simulation 📱</a>
+            <a href="#calculator" class="btn btn-secondary">Test Price Matrix 📊</a>
+        </div>
+    </section>
+
+    <!-- Problem vs Solution Section -->
+    <section id="problem">
+        <h2 class="section-title">Why Detailing Studios Lose Money Daily</h2>
+        <p class="section-subtitle">Repetitive inquiries burn receptionist time and lead to delayed quotes, resulting in lost high-ticket customers.</p>
+
+        <div class="grid-2">
+            <!-- Problem Card -->
+            <div class="card card-problem">
+                <div class="card-header">
+                    <div class="card-icon icon-red">❌</div>
+                    <h3>Current Industry Pain Points</h3>
+                </div>
+                <div class="list-item">
+                    <span>• Delayed Replies:</span> Customers ask "How much for Ceramic on Creta?" at 9 PM and get answers next morning.
+                </div>
+                <div class="list-item">
+                    <span>• Manual Pricing Chaos:</span> Receptionist constantly checks spreadsheets for Sedan vs SUV pricing.
+                </div>
+                <div class="list-item">
+                    <span>• Forgotten Portfolio Sharing:</span> Staff forgets to send before/after photos to prove quality.
+                </div>
+                <div class="list-item">
+                    <span>• Zero Repeat Followups:</span> Studios forget to remind customers for 6-month ceramic maintenance inspections.
+                </div>
+            </div>
+
+            <!-- Solution Card -->
+            <div class="card card-solution">
+                <div class="card-header">
+                    <div class="card-icon icon-green">⚡</div>
+                    <h3>The HyperAgent AI Solution</h3>
+                </div>
+                <div class="list-item">
+                    <span>• Instant 24/7 Replies:</span> Answers WhatsApp leads in under 5 seconds with zero human delay.
+                </div>
+                <div class="list-item">
+                    <span>• Smart Matrix Pricing:</span> AI automatically classifies Creta ➡️ SUV ➡️ Quotes ₹22,000 instantly.
+                </div>
+                <div class="list-item">
+                    <span>• Automatic Portfolio Delivery:</span> Sends high-resolution before/after images directly in chat.
+                </div>
+                <div class="list-item">
+                    <span>• 6-Month Maintenance Engine:</span> Automatically sends WhatsApp reminders when coating inspection is due.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WhatsApp Interactive Simulator -->
+    <section id="simulator">
+        <h2 class="section-title">Live WhatsApp AI Experience</h2>
+        <p class="section-subtitle">Click the simulation steps below to see how HyperAgent engages a real car detailing lead.</p>
+
+        <div class="demo-container">
+            <!-- Phone UI -->
+            <div class="phone-mockup">
+                <div class="phone-header">
+                    <div class="avatar">AG</div>
+                    <div class="contact-info">
+                        <h4>AeroGloss Detailing Studio ⚡</h4>
+                        <p>● HyperAgent AI Online</p>
+                    </div>
+                </div>
+
+                <div class="chat-body" id="chatBody">
+                    <!-- Dynamic chat injected via JS -->
+                </div>
+
+                <div class="chat-controls">
+                    <button class="step-btn active" onclick="setStep(1)">1. Inquiry</button>
+                    <button class="step-btn" onclick="setStep(2)">2. Vehicle & Quote</button>
+                    <button class="step-btn" onclick="setStep(3)">3. Pickup & Book</button>
+                    <button class="step-btn" onclick="setStep(4)">4. 6-Mo Reminder</button>
+                </div>
+            </div>
+
+            <!-- Explanation Panel -->
+            <div>
+                <h3 id="stepTitle" style="font-size: 1.8rem; margin-bottom: 1rem; color: #fff;">1. Customer Inquiry & Instant Engagement</h3>
+                <p id="stepDesc" style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 1.5rem;">
+                    When Rahul messages asking for Ceramic Coating prices, the AI receptionist instantly greets him, explains the package highlight, and prompts for his car make & model to calculate the exact quote.
+                </p>
+
+                <div style="background: rgba(16, 185, 129, 0.08); border-left: 4px solid var(--accent-emerald); padding: 1.2rem; border-radius: 8px;">
+                    <h4 style="font-size: 0.9rem; color: var(--accent-emerald); text-transform: uppercase; margin-bottom: 4px;">⚡ Key Studio Advantage:</h4>
+                    <p id="stepBenefit" style="font-size: 0.88rem; color: var(--text-main);">
+                        Captures high-intent leads 24/7 even after working hours when customers browse WhatsApp.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dynamic Pricing Matrix Interactive -->
+    <section id="calculator" class="calculator-card">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">Dynamic Matrix Pricing Simulator</h2>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 2rem;">Select a vehicle category to see how HyperAgent dynamically evaluates pricing rules for the studio owner.</p>
+
+        <div class="cat-selector">
+            <div class="cat-btn" onclick="selectCategory('Hatchback', this)">
+                <h4>🚗 Hatchback</h4>
+                <p>i20, Swift, Polo, Baleno</p>
+            </div>
+            <div class="cat-btn" onclick="selectCategory('Sedan', this)">
+                <h4>🚘 Sedan</h4>
+                <p>City, Verna, Virtus, Ciaz</p>
+            </div>
+            <div class="cat-btn active" onclick="selectCategory('SUV', this)">
+                <h4>🚙 SUV / Crossover</h4>
+                <p>Creta, Seltos, Harrier, Nexon</p>
+            </div>
+            <div class="cat-btn" onclick="selectCategory('Luxury', this)">
+                <h4>🏎️ Luxury / Large SUV</h4>
+                <p>Fortuner, BMW X5, Defender</p>
+            </div>
+        </div>
+
+        <div class="price-output-grid">
+            <div class="price-box">
+                <h5>9H Ceramic Coating (3 Year)</h5>
+                <div class="price-val" id="priceCeramic">₹22,000 <span>(All Incl)</span></div>
+            </div>
+            <div class="price-box">
+                <h5>Paint Protection Film (PPF)</h5>
+                <div class="price-val" id="pricePPF">₹75,000 <span>(TPU Self Healing)</span></div>
+            </div>
+            <div class="price-box">
+                <h5>Deep Interior Spa & Sanitization</h5>
+                <div class="price-val" id="priceInterior">₹4,500 <span>(Leather + Fabric)</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Features Grid -->
+    <section id="features">
+        <h2 class="section-title">Complete Studio Feature Suite</h2>
+        <p class="section-subtitle">Everything built into the generalized HyperAgent Service Business OS.</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>AI WhatsApp Receptionist</h3>
+                <p>Answers inquiries 24/7 in English & Hinglish, handles price questions, and qualifies vehicle types automatically.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Dynamic Matrix Pricing</h3>
+                <p>Configure pricing rules by Hatchback, Sedan, SUV, or Luxury once. AI maps any vehicle model to its category.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📸</div>
+                <h3>Portfolio Auto-Sharer</h3>
+                <p>Upload past work photos. The AI automatically attaches relevant before/after images when pitching a service.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚗</div>
+                <h3>Customer Asset CRM</h3>
+                <p>Tracks vehicle make, model, year, service history, coating type, and warranty expiry for every customer.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⏰</div>
+                <h3>6-Month Auto Reminders</h3>
+                <p>Automatically sends maintenance inspection reminders 6 & 12 months post-service to drive repeat business.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚚</div>
+                <h3>Pickup & Drop Coordinator</h3>
+                <p>Collects doorstep pickup address, landmark, and preferred timing, sending instant driver notifications.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Client Discussion Checklist -->
+    <section id="feedback">
+        <div class="feedback-box">
+            <h2>⚡ Studio Discovery & Requirement Assessment</h2>
+            <p style="color: var(--text-muted);">Key operational benchmarks evaluated during every studio client onboarding meeting:</p>
+
+            <div class="checklist">
+                <div class="check-item">
+                    <span>1️⃣</span> <strong>After-Hours Inquiries:</strong> "How many WhatsApp pricing inquiries does your studio receive after working hours?"
+                </div>
+                <div class="check-item">
+                    <span>2️⃣</span> <strong>Vehicle Tier Pricing:</strong> "How do you currently structure matrix prices across Hatchback, Sedan, SUV, and Luxury vehicles?"
+                </div>
+                <div class="check-item">
+                    <span>3️⃣</span> <strong>Visual Proof & Conversion:</strong> "Would instant before/after photo sharing on WhatsApp increase your lead-to-booking conversion?"
+                </div>
+                <div class="check-item">
+                    <span>4️⃣</span> <strong>Retention & Reminders:</strong> "How do you currently manage 6-month & 12-month ceramic maintenance follow-ups?"
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2026 HyperAgent AI — Generalizable Service Business Platform Architecture</p>
+    </footer>
+
+    <script>
+        // Interactive WhatsApp Simulator Script
+        const stepsData = {
+            1: {
+                title: "1. Customer Inquiry & Instant Engagement",
+                desc: "When Rahul messages asking for Ceramic Coating prices, the AI receptionist instantly greets him, explains the package highlight, and prompts for his car make & model to calculate the exact quote.",
+                benefit: "Captures high-intent leads 24/7 even after working hours when customers browse WhatsApp late at night.",
+                chat: [
+                    { type: 'in', text: "Hi, I want to get ceramic coating done for my car. How much does it cost?", time: "09:15 AM" },
+                    { type: 'out', text: "Hello Rahul! 👋 Welcome to AeroGloss Studio!\n\nOur 9H Ceramic Coating includes full exterior decontamination, 2-stage paint correction, 9H ceramic layer, and a 3-Year Warranty! ✨\n\nPricing depends on your car size. Could you tell me your vehicle make and model (e.g. Hyundai Creta, Honda City)?", time: "09:15 AM" }
+                ]
+            },
+            2: {
+                title: "2. Vehicle Qualification, Matrix Price & Portfolio",
+                desc: "Rahul provides his car details. The AI classifies 'Hyundai Creta' as an SUV, computes the ₹22,000 matrix price, and automatically sends portfolio images of past Creta ceramic jobs.",
+                benefit: "Eliminates manual pricing spreadsheets and automatically delivers proof-of-work photos to close the lead fast.",
+                chat: [
+                    { type: 'in', text: "It's a 2023 Hyundai Creta (White).", time: "09:16 AM" },
+                    { type: 'out', text: "Got it! For a Hyundai Creta (SUV Category), our 3-Year 9H Ceramic Coating package is ₹22,000 (all inclusive).\n\nHere is a look at our recent ceramic coating work on a Creta:", time: "09:16 AM", media: true },
+                    { type: 'out', text: "We have open detailing bays available this Thursday (10:00 AM) and Friday (02:00 PM). Which slot works for you?", time: "09:16 AM" }
+                ]
+            },
+            3: {
+                title: "3. Doorstep Pickup & Appointment Confirmation",
+                desc: "Rahul chooses Friday 2 PM and asks for doorstep pickup. The AI collects his address and locks in the appointment in PostgreSQL with double-booking prevention.",
+                benefit: "Secures firm bookings and captures pickup addresses automatically without receptionist phone calls.",
+                chat: [
+                    { type: 'in', text: "Friday 2 PM works. Do you guys offer car pickup from home?", time: "09:17 AM" },
+                    { type: 'out', text: "Yes, we provide complimentary doorstep pickup and drop within 10 km! 🚗💨\n\nCould you please share your pickup address & landmark for Friday at 02:00 PM?", time: "09:17 AM" },
+                    { type: 'in', text: "Flat 402, Green Acres Society, Baner, Pune. Landmark: Near D-Mart.", time: "09:18 AM" },
+                    { type: 'out', text: "🎉 Booking Confirmed!\n\n📋 Service Details:\n• Vehicle: 2023 Hyundai Creta (White)\n• Service: 9H Ceramic Coating (3-Yr Warranty)\n• Price: ₹22,000\n• Time: Friday, 2:00 PM\n• Pickup: Flat 402, Green Acres Society, Baner\n\nOur driver will contact you 30 mins prior!", time: "09:18 AM" }
+                ]
+            },
+            4: {
+                title: "4. 6-Month Automated Maintenance Reminder",
+                desc: "Six months later, the automated background engine identifies that Rahul's Creta is due for its 1st warranty inspection and fires a WhatsApp reminder.",
+                benefit: "Drives recurring revenue by bringing back past customers for maintenance inspections automatically.",
+                chat: [
+                    { type: 'out', text: "🗓️ [6 Months Later - Automated Trigger]\n\nHi Rahul! 👋 It's been 6 months since we applied 9H Ceramic Coating on your Hyundai Creta!\n\nTo keep your hydrophobic shine & warranty active, your 1st Complimentary Maintenance Inspection is now due.\n\nReply 'BOOK' to reserve your slot for this week! 🚘✨", time: "10:00 AM" }
+                ]
+            }
+        };
+
+        function setStep(stepNum) {
+            document.querySelectorAll('.step-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i + 1 === stepNum);
+            });
+
+            const data = stepsData[stepNum];
+            document.getElementById('stepTitle').innerText = data.title;
+            document.getElementById('stepDesc').innerText = data.desc;
+            document.getElementById('stepBenefit').innerText = data.benefit;
+
+            const chatBody = document.getElementById('chatBody');
+            chatBody.innerHTML = '';
+
+            data.chat.forEach(m => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `msg ${m.type === 'in' ? 'msg-in' : 'msg-out'}`;
+                
+                let content = m.text.replace(/\n/g, '<br>');
+                if (m.media) {
+                    content += `
+                        <div class="media-preview">
+                            <div class="media-card" style="background-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 100%), url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80')">
+                                <span class="media-badge badge-before">BEFORE</span>
+                                <span class="media-sub">Dull & Scratched</span>
+                            </div>
+                            <div class="media-card" style="background-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 100%), url('https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80')">
+                                <span class="media-badge badge-after">AFTER 9H SHINE ✨</span>
+                                <span class="media-sub">Hydrophobic Mirror</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                content += `<div class="msg-time">${m.time}</div>`;
+                msgDiv.innerHTML = content;
+                chatBody.appendChild(msgDiv);
+            });
+
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Matrix Calculator Script
+        const matrixPrices = {
+            'Hatchback': { ceramic: '₹15,000', ppf: '₹55,000', interior: '₹3,500' },
+            'Sedan': { ceramic: '₹18,000', ppf: '₹65,000', interior: '₹4,000' },
+            'SUV': { ceramic: '₹22,000', ppf: '₹75,000', interior: '₹4,500' },
+            'Luxury': { ceramic: '₹28,000', ppf: '₹95,000', interior: '₹6,000' }
+        };
+
+        function selectCategory(cat, el) {
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+
+            const p = matrixPrices[cat];
+            document.getElementById('priceCeramic').innerHTML = `${p.ceramic} <span>(All Incl)</span>`;
+            document.getElementById('pricePPF').innerHTML = `${p.ppf} <span>(TPU Self Healing)</span>`;
+            document.getElementById('priceInterior').innerHTML = `${p.interior} <span>(Leather + Fabric)</span>`;
+        }
+
+        // Initialize Step 1
+        setStep(1);
+    </script>
+</body>
+</html>
