@@ -24,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { InboxAiAssistant } from "@/components/inbox/inbox-ai-assistant";
+import { CustomerAssetDrawer } from "@/modules/booking/ui/CustomerAssetDrawer";
 
 const AI_PANEL_STORAGE_KEY = "wacrm:inbox:ai-panel-open";
 
@@ -50,10 +51,10 @@ export function ContactSidebar({
 
   /**
    * Whether the AI assistant panel is expanded.
-   * Defaults to `true` (show by default) and is restored from localStorage
-   * after mount to avoid hydration mismatches.
+   * Defaults to `false` (collapsed by default to give full space to contact details & assets)
+   * and is restored from localStorage after mount to avoid hydration mismatches.
    */
-  const [aiPanelOpen, setAiPanelOpen] = useState(true);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [canReset, setCanReset] = useState(false);
   const aiResetRef = useRef<(() => void) | null>(null);
 
@@ -177,8 +178,8 @@ export function ContactSidebar({
         {/* AI panel — always shown even with no contact selected */}
         <div
           className={cn(
-            "flex flex-col transition-all duration-200",
-            aiPanelOpen ? "flex-1" : "shrink-0",
+            "flex flex-col border-t border-border transition-all duration-200",
+            aiPanelOpen ? "h-1/2 min-h-0" : "shrink-0",
           )}
         >
           {/* AI panel header */}
@@ -220,10 +221,10 @@ export function ContactSidebar({
   return (
     <div className="flex h-full w-72 flex-col border-l border-border bg-card">
       {/* ──────────────────────────────────────────────
-          TOP: Contact info — fixed height, scrollable
+          TOP: Contact info & Customer Assets — scrollable area
           ────────────────────────────────────────────── */}
-      <div className="flex-none overflow-y-auto" style={{ maxHeight: "52%" }}>
-        <ScrollArea className="flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
           <div className="p-3">
             {/* Contact Info — compact horizontal row */}
             <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5">
@@ -394,6 +395,11 @@ export function ContactSidebar({
                   ))}
                 </div>
               </div>
+
+              {/* Customer Assets (Vehicles / Patient Records / Properties) */}
+              {accountId && contact && (
+                <CustomerAssetDrawer contactId={contact.id} accountId={accountId} />
+              )}
             </div>
           </div>
         </ScrollArea>
@@ -404,8 +410,8 @@ export function ContactSidebar({
           ────────────────────────────────────────────── */}
       <div
         className={cn(
-          "flex min-h-0 flex-col border-t border-border transition-all duration-200",
-          aiPanelOpen ? "flex-1" : "shrink-0",
+          "flex flex-col border-t border-border transition-all duration-200",
+          aiPanelOpen ? "h-1/2 min-h-0" : "shrink-0",
         )}
       >
         {/* AI panel header — div row with two sibling buttons, never nested */}

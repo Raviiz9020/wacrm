@@ -18,6 +18,7 @@ import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel'
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
+import { IndustryConfig } from '@/components/settings/industry-config';
 import {
   resolveSection,
   type SettingsSection,
@@ -26,7 +27,7 @@ import {
 export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency } = useAuth();
+  const { defaultCurrency, accountId } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
@@ -58,6 +59,7 @@ export default function SettingsPage() {
     profile: <ProfileForm />,
     security: <SecurityPanel />,
     appearance: <AppearancePanel />,
+    industry: <IndustryConfig accountId={accountId || ''} />,
     whatsapp: <WhatsAppConfig />,
     templates: <TemplateManager />,
     'quick-replies': <QuickRepliesManager />,
