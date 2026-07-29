@@ -64,7 +64,8 @@ export async function getAvailableSlots(
   providerId: string,
   serviceId: string,
   dateStr: string,
-  client = supabaseAdmin()
+  client = supabaseAdmin(),
+  customDurationMinutes?: number
 ): Promise<TimeSlot[]> {
   // 1. Fetch service details to get duration
   const { data: service, error: serviceErr } = await client
@@ -79,7 +80,7 @@ export async function getAvailableSlots(
     throw new Error(`Service not found or inactive: ${serviceErr?.message || 'Not found'}`);
   }
 
-  const duration = service.duration_minutes;
+  const duration = customDurationMinutes && customDurationMinutes > 0 ? customDurationMinutes : service.duration_minutes;
 
   // 2. Fetch overrides (vacations, custom hours)
   const { data: override, error: overrideErr } = await client

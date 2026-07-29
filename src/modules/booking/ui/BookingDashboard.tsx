@@ -19,6 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import type { TimeSlot } from "../services/slotGenerator";
+import { getMatrixRulesForService } from "../services/matrixPricingService";
+import { getAssetsForContact, recordAssetServiceHistory } from "../services/customerAssetService";
+import type { BookingServicePriceMatrix } from "@/types";
 
 export function BookingDashboard() {
   const { account } = useAuth();
@@ -49,12 +52,12 @@ export function BookingDashboard() {
   // Local state
   const [activeTab, setActiveTab] = useState("appointments");
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([]);
-  
+
   // Edit States
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [editProvServices, setEditProvServices] = useState<string[]>([]);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  
+
   // Edit form inputs
   const [editProvName, setEditProvName] = useState("");
   const [editProvDesc, setEditProvDesc] = useState("");
@@ -65,7 +68,7 @@ export function BookingDashboard() {
   const [editServPrice, setEditServPrice] = useState("");
   const [editServDesc, setEditServDesc] = useState("");
   const [editServActive, setEditServActive] = useState(true);
-  
+
   // Dialog Open States
   const [isBookOpen, setIsBookOpen] = useState(false);
   const [isProviderOpen, setIsProviderOpen] = useState(false);
@@ -74,7 +77,7 @@ export function BookingDashboard() {
   // New Resource Form States
   const [newProvName, setNewProvName] = useState("");
   const [newProvDesc, setNewProvDesc] = useState("");
-  
+
   // New Service Form States
   const [newServName, setNewServName] = useState("");
   const [newServDuration, setNewServDuration] = useState(30);
@@ -90,6 +93,27 @@ export function BookingDashboard() {
   const [bookNotes, setBookNotes] = useState("");
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [bookMatrixRules, setBookMatrixRules] = useState<BookingServicePriceMatrix[]>([]);
+  const [selectedMatrixRuleId, setSelectedMatrixRuleId] = useState<string>("");
+  const [contactSearch, setContactSearch] = useState("");
+
+  useEffect(() => {
+    if (!bookServiceId || !account?.id) {
+      setBookMatrixRules([]);
+      setSelectedMatrixRuleId("");
+      return;
+    }
+    getMatrixRulesForService(account.id, bookServiceId)
+      .then((rules) => {
+        setBookMatrixRules(rules || []);
+        setSelectedMatrixRuleId("");
+      })
+      .catch((err) => {
+        console.error("Failed to load service matrix rules:", err);
+        setBookMatrixRules([]);
+        setSelectedMatrixRuleId("");
+      });
+  }, [bookServiceId, account?.id]);
 
   // Scheduler Configuration States
   const [schedProviderId, setSchedProviderId] = useState("");
@@ -141,9 +165,9 @@ export function BookingDashboard() {
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
 
-    const isSameDay = (d1: Date, d2: Date) => 
-      d1.getDate() === d2.getDate() && 
-      d1.getMonth() === d2.getMonth() && 
+    const isSameDay = (d1: Date, d2: Date) =>
+      d1.getDate() === d2.getDate() &&
+      d1.getMonth() === d2.getMonth() &&
       d1.getFullYear() === d2.getFullYear();
 
     if (isSameDay(d, today)) return "Today";
@@ -184,7 +208,7 @@ export function BookingDashboard() {
     if (filterDateRange !== "all") {
       const apptDate = new Date(appt.start_time);
       const today = new Date();
-      
+
       const startOfDay = (d: Date) => {
         const copy = new Date(d);
         copy.setHours(0, 0, 0, 0);
@@ -217,7 +241,7 @@ export function BookingDashboard() {
   });
 
   // Sort appointments by start_time ascending
-  const sortedAppts = [...filteredAppointments].sort((a, b) => 
+  const sortedAppts = [...filteredAppointments].sort((a, b) =>
     new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   );
 
@@ -354,7 +378,7 @@ export function BookingDashboard() {
   useEffect(() => {
     async function loadProviderSchedule() {
       if (!schedProviderId) return;
-      
+
       // Load weekly schedule
       const { data: weekly } = await supabase
         .from("booking_schedules")
@@ -367,7 +391,7 @@ export function BookingDashboard() {
       for (let i = 0; i <= 6; i++) {
         newWeekly[i] = { active: false, shifts: [] };
       }
-      
+
       // Populate active days and shifts
       if (weekly && weekly.length > 0) {
         weekly.forEach(w => {
@@ -473,13 +497,44 @@ export function BookingDashboard() {
     e.preventDefault();
     if (!bookProviderId || !bookServiceId || !bookContactId || !bookDate || !bookSlot) return;
     try {
-      await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, bookNotes);
+      let finalNotes = bookNotes;
+      const selectedRule = bookMatrixRules.find((r) => r.id === selectedMatrixRuleId);
+      if (selectedRule) {
+        const variantTag = `[Variant: ${selectedRule.attribute_value}]`;
+        finalNotes = finalNotes ? `${variantTag} ${finalNotes}` : variantTag;
+      }
+
+      await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, finalNotes);
+
+      // Auto-log to customer asset service history if contact has assets
+      if (account?.id && bookContactId) {
+        try {
+          const assets = await getAssetsForContact(bookContactId, account.id);
+          const firstAsset = assets[0];
+          if (firstAsset) {
+            const serviceObj = services.find((s) => s.id === bookServiceId);
+            const serviceLabel = serviceObj?.name || "Service";
+            const variantText = selectedRule ? ` (${selectedRule.attribute_value})` : "";
+            const logNotes = `${serviceLabel}${variantText}. ${bookNotes}`.trim();
+            await recordAssetServiceHistory({
+              accountId: account.id,
+              assetId: firstAsset.id,
+              notes: logNotes,
+            });
+          }
+        } catch (logErr) {
+          console.error("Auto-logging asset history failed:", logErr);
+        }
+      }
+
       setBookProviderId("");
       setBookServiceId("");
       setBookContactId("");
       setBookDate("");
       setBookSlot("");
       setBookNotes("");
+      setSelectedMatrixRuleId("");
+      setContactSearch("");
       setIsBookOpen(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Booking conflict occurred.");
@@ -524,7 +579,7 @@ export function BookingDashboard() {
       );
       alert("Schedule override date saved!");
       setOverrideDate("");
-      
+
       // Refetch overrides
       const { data: overrides } = await supabase
         .from("booking_schedule_overrides")
@@ -545,7 +600,7 @@ export function BookingDashboard() {
         .delete()
         .eq("id", overrideId);
       if (error) throw error;
-      
+
       // Refetch overrides
       const { data: overrides } = await supabase
         .from("booking_schedule_overrides")
@@ -585,7 +640,7 @@ export function BookingDashboard() {
             Onboard resources, set business hours, manage availability, and schedule customer appointments.
           </p>
         </div>
-        
+
         {/* Book Appointment Action */}
         <Dialog open={isBookOpen} onOpenChange={setIsBookOpen}>
           <DialogTrigger render={<Button className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" />}>
@@ -610,12 +665,37 @@ export function BookingDashboard() {
                           : "Choose a client..."}
                       </span>
                     </SelectTrigger>
-                    <SelectContent className="border-border bg-card">
-                      {contacts.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} ({c.phone})
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="border-border bg-card min-w-[var(--radix-select-trigger-width)] w-max max-w-sm">
+                      <div className="p-2 border-b border-border sticky top-0 bg-card z-10">
+                        <Input
+                          placeholder="Search by name or phone..."
+                          value={contactSearch}
+                          onChange={e => setContactSearch(e.target.value)}
+                          className="h-8 text-xs border-border"
+                          onKeyDown={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {contacts
+                          .filter(c => {
+                            const q = contactSearch.toLowerCase();
+                            return !q || c.name?.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q);
+                          })
+                          .map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-sm text-foreground">{c.name}</span>
+                                <span className="text-xs text-muted-foreground">{c.phone}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        {contacts.filter(c => {
+                          const q = contactSearch.toLowerCase();
+                          return !q || c.name?.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q);
+                        }).length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-3">No contacts found</p>
+                        )}
+                      </div>
                     </SelectContent>
                   </Select>
                 </div>
@@ -653,6 +733,33 @@ export function BookingDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+                {bookMatrixRules.length > 0 && (
+                  <div className="grid gap-1.5 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <Label htmlFor="matrixVariant" className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                      <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+                      Select Pricing Variant / Attribute (e.g. Gold Crown)
+                    </Label>
+                    <Select
+                      value={selectedMatrixRuleId}
+                      onValueChange={(val) => setSelectedMatrixRuleId(val || "")}
+                    >
+                      <SelectTrigger className="border-primary/30 bg-card text-xs">
+                        <span className="text-xs font-medium text-foreground">
+                          {selectedMatrixRuleId
+                            ? `${bookMatrixRules.find((r) => r.id === selectedMatrixRuleId)?.attribute_value} — ₹${bookMatrixRules.find((r) => r.id === selectedMatrixRuleId)?.price}`
+                            : "Choose variant (Gold Crown / Silver Crown)..."}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent className="border-border bg-card">
+                        {bookMatrixRules.map((rule) => (
+                          <SelectItem key={rule.id} value={rule.id}>
+                            {rule.attribute_value} — ₹{rule.price} {rule.duration_minutes ? `(${rule.duration_minutes}m)` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="date">Date</Label>
                   <Input
@@ -764,7 +871,7 @@ export function BookingDashboard() {
                   <SelectItem value="week">Next 7 Days</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               {/* Status Selector */}
               <Select value={filterStatus} onValueChange={val => setFilterStatus(val || "confirmed")}>
                 <SelectTrigger className="w-full sm:w-[140px] border-border bg-card">
@@ -917,91 +1024,91 @@ export function BookingDashboard() {
                         const isPast = new Date(appt.end_time).getTime() < Date.now();
                         return (
                           <Card key={appt.id} className={`border-border bg-card hover:bg-muted/10 transition-all ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
-                          <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
-                            <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
-                              <div>
-                                {/* Time & Provider row */}
-                                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                  <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
-                                    {appt.provider?.name}
-                                  </span>
+                            <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
+                              <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
+                                <div>
+                                  {/* Time & Provider row */}
+                                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                    <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
+                                      {appt.provider?.name}
+                                    </span>
+                                  </div>
+
+                                  {/* Customer name + chat icon */}
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
+                                      {appt.conversation_id && (
+                                        <a
+                                          href={`/inbox?c=${appt.conversation_id}`}
+                                          className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
+                                          title="Open Chat in Inbox"
+                                        >
+                                          <MessageSquare className="h-3.5 w-3.5" />
+                                        </a>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
+                                  </div>
                                 </div>
 
-                                {/* Customer name + chat icon */}
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
-                                    {appt.conversation_id && (
-                                      <a
-                                        href={`/inbox?c=${appt.conversation_id}`}
-                                        className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
-                                        title="Open Chat in Inbox"
-                                      >
-                                        <MessageSquare className="h-3.5 w-3.5" />
-                                      </a>
-                                    )}
+                                {/* Service and Notes */}
+                                <div className="space-y-1">
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                    <span className="font-medium text-foreground">{appt.service?.name}</span>
+                                    <span>•</span>
+                                    <span>{appt.service?.duration_minutes} mins</span>
                                   </div>
-                                  <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
+                                  {appt.notes && (
+                                    <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
+                                      "{appt.notes}"
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
-                              {/* Service and Notes */}
-                              <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                  <span className="font-medium text-foreground">{appt.service?.name}</span>
-                                  <span>•</span>
-                                  <span>{appt.service?.duration_minutes} mins</span>
-                                </div>
-                                {appt.notes && (
-                                  <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
-                                    "{appt.notes}"
-                                  </p>
+                              {/* Status and Action Column */}
+                              <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
+                                {getSimulatedStatusBadge(appt)}
+
+                                {appt.status === "confirmed" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                    onClick={() => {
+                                      if (confirm("Are you sure you want to cancel this appointment?")) {
+                                        cancel(appt.id);
+                                      }
+                                    }}
+                                    title="Cancel Appointment"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+
+                                {appt.status === "cancelled" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                    onClick={() => {
+                                      if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                        deleteAppointment(appt.id);
+                                      }
+                                    }}
+                                    title="Delete Appointment permanently"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 )}
                               </div>
-                            </div>
-
-                            {/* Status and Action Column */}
-                            <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
-                              {getSimulatedStatusBadge(appt)}
-
-                              {appt.status === "confirmed" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                                  onClick={() => {
-                                    if (confirm("Are you sure you want to cancel this appointment?")) {
-                                      cancel(appt.id);
-                                    }
-                                  }}
-                                  title="Cancel Appointment"
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              )}
-
-                              {appt.status === "cancelled" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                                  onClick={() => {
-                                    if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                      deleteAppointment(appt.id);
-                                    }
-                                  }}
-                                  title="Delete Appointment permanently"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
+                            </CardContent>
+                          </Card>
                         );
                       })}
                     </div>
@@ -1199,7 +1306,7 @@ export function BookingDashboard() {
                                       </div>
                                       <p className="text-[10px] text-muted-foreground">{appt.service?.name} ({appt.service?.duration_minutes}m)</p>
                                     </div>
-                                    
+
                                     {/* Inline actions to save height */}
                                     <div className="flex items-center gap-1">
                                       {appt.status === "confirmed" && (
@@ -1267,67 +1374,67 @@ export function BookingDashboard() {
                         const isPast = new Date(appt.end_time).getTime() < Date.now();
                         return (
                           <TableRow key={appt.id} className={`border-border hover:bg-muted/30 ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
-                              {appt.conversation_id && (
-                                <a
-                                  href={`/inbox?c=${appt.conversation_id}`}
-                                  className="text-primary hover:text-primary/80 transition-colors"
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-foreground text-sm">{appt.contact?.name || "Unknown"}</span>
+                                {appt.conversation_id && (
+                                  <a
+                                    href={`/inbox?c=${appt.conversation_id}`}
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium text-sm">{appt.service?.name}</div>
+                              <div className="text-xs text-muted-foreground">{appt.service?.duration_minutes} mins</div>
+                            </TableCell>
+                            <TableCell className="font-medium text-muted-foreground text-sm">
+                              {appt.provider?.name}
+                            </TableCell>
+                            <TableCell className="font-medium text-sm">
+                              {formatDateTime(appt.start_time)}
+                            </TableCell>
+                            <TableCell>
+                              {getSimulatedStatusBadge(appt)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {appt.status === "confirmed" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to cancel this appointment?")) {
+                                      cancel(appt.id);
+                                    }
+                                  }}
+                                  title="Cancel Appointment"
                                 >
-                                  <MessageSquare className="h-3.5 w-3.5" />
-                                </a>
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
                               )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium text-sm">{appt.service?.name}</div>
-                            <div className="text-xs text-muted-foreground">{appt.service?.duration_minutes} mins</div>
-                          </TableCell>
-                          <TableCell className="font-medium text-muted-foreground text-sm">
-                            {appt.provider?.name}
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">
-                            {formatDateTime(appt.start_time)}
-                          </TableCell>
-                          <TableCell>
-                            {getSimulatedStatusBadge(appt)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {appt.status === "confirmed" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to cancel this appointment?")) {
-                                    cancel(appt.id);
-                                  }
-                                }}
-                                title="Cancel Appointment"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            )}
-  
-                            {appt.status === "cancelled" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                    deleteAppointment(appt.id);
-                                  }
-                                }}
-                                title="Delete Appointment permanently"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
+
+                              {appt.status === "cancelled" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                      deleteAppointment(appt.id);
+                                    }
+                                  }}
+                                  title="Delete Appointment permanently"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
                     </TableBody>
@@ -1643,7 +1750,7 @@ export function BookingDashboard() {
                         Save Business Hours
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {[
                         { day: 1, label: "Monday" },
@@ -1813,7 +1920,7 @@ export function BookingDashboard() {
                     <Button onClick={handleSaveOverride} variant="secondary" size="sm" className="w-full text-xs" disabled={!overrideDate}>
                       Set Override
                     </Button>
-                    
+
                     {/* Active overrides list */}
                     {overrideList.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-border space-y-2">

@@ -49,8 +49,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const durationParam = searchParams.get('duration');
+    const customDuration = durationParam ? parseInt(durationParam, 10) : undefined;
+
     // 3. Query slots passing the user-authenticated supabase client to enforce RLS
-    const slots = await getAvailableSlots(accountId, providerId, serviceId, dateStr, supabase);
+    const slots = await getAvailableSlots(accountId, providerId, serviceId, dateStr, supabase, customDuration);
 
     return NextResponse.json({ slots });
   } catch (err) {

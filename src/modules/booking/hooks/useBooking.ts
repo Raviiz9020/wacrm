@@ -276,11 +276,13 @@ export function useBooking() {
   };
 
   // Fetch slot availability from our Phase 2 API endpoint
-  const getSlots = async (providerId: string, serviceId: string, dateStr: string): Promise<TimeSlot[]> => {
+  const getSlots = async (providerId: string, serviceId: string, dateStr: string, customDuration?: number): Promise<TimeSlot[]> => {
     try {
-      const res = await fetch(
-        `/api/v1/booking/slots?provider_id=${providerId}&service_id=${serviceId}&date=${dateStr}`
-      );
+      let url = `/api/v1/booking/slots?provider_id=${providerId}&service_id=${serviceId}&date=${dateStr}`;
+      if (customDuration) {
+        url += `&duration=${customDuration}`;
+      }
+      const res = await fetch(url);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to fetch slots');
       return json.slots || [];

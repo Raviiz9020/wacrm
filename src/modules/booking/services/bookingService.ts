@@ -102,6 +102,33 @@ export async function createAppointment(
     throw new Error(`Booking execution failed: ${insertErr.message}`);
   }
 
+  // Auto-record to customer_asset_history if assetId is provided or contact has an asset
+  try {
+    let targetAssetId = assetId;
+    if (!targetAssetId && contactId) {
+      const { data: assets } = await client
+        .from('customer_assets')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('contact_id', contactId)
+        .limit(1);
+      targetAssetId = assets?.[0]?.id;
+    }
+
+    if (targetAssetId) {
+      await client.from('customer_asset_history').insert({
+        account_id: accountId,
+        asset_id: targetAssetId,
+        appointment_id: appointment.id,
+        service_id: serviceId,
+        service_date: startTimeUTC,
+        notes: notes || null,
+      });
+    }
+  } catch (historyErr) {
+    console.error('Auto-logging asset history failed in bookingService:', historyErr);
+  }
+
   return appointment;
 }
 
