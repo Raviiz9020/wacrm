@@ -18,6 +18,8 @@ import {
   ChevronUp,
   Sparkles,
   RotateCcw,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,6 +50,9 @@ export function ContactSidebar({
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState<string>("");
+  const [updatingNote, setUpdatingNote] = useState<boolean>(false);
 
   /**
    * Whether the AI assistant panel is expanded.
@@ -165,6 +170,40 @@ export function ContactSidebar({
     setAddingNote(false);
   }, [contact, newNote, accountId]);
 
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    if (!confirm("Are you sure you want to delete this internal note?")) return;
+    const supabase = createClient();
+    const { error } = await supabase.from("contact_notes").delete().eq("id", noteId);
+    if (!error) {
+      setNotes((prev) => prev.filter((n) => n.id !== noteId));
+    } else {
+      console.error("Failed to delete note:", error);
+      alert("Failed to delete note.");
+    }
+  }, []);
+
+  const handleUpdateNote = useCallback(async (noteId: string) => {
+    if (!editingNoteText.trim()) return;
+    setUpdatingNote(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("contact_notes")
+      .update({ note_text: editingNoteText.trim() })
+      .eq("id", noteId);
+
+    if (!error) {
+      setNotes((prev) =>
+        prev.map((n) => (n.id === noteId ? { ...n, note_text: editingNoteText.trim() } : n))
+      );
+      setEditingNoteId(null);
+      setEditingNoteText("");
+    } else {
+      console.error("Failed to update note:", error);
+      alert("Failed to update note.");
+    }
+    setUpdatingNote(false);
+  }, [editingNoteText]);
+
   if (!contact) {
     return (
       <div className="flex h-full w-72 flex-col border-l border-border bg-card">
@@ -218,189 +257,260 @@ export function ContactSidebar({
   const displayName = contact.name || contact.phone;
   const initials = displayName.charAt(0).toUpperCase();
 
+  const [infoOpen, setInfoOpen] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
+
   return (
-    <div className="flex h-full w-72 flex-col border-l border-border bg-card">
+    <div className="flex h-full w-72 flex-col border-l border-border bg-card text-xs">
       {/* ──────────────────────────────────────────────
-          TOP: Contact info & Customer Assets — scrollable area
+          TOP: Contact info, Notes & Customer Assets — scrollable area
           ────────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-hidden">
         <ScrollArea className="h-full">
-          <div className="p-3">
-            {/* Contact Info — compact horizontal row */}
-            <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5">
-              {/* Avatar */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
-                {contact.avatar_url ? (
-                  <img
-                    src={contact.avatar_url}
-                    alt={displayName}
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
+          <div className="p-3 space-y-3">
+            {/* 1. Contact Details Accordion */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <button
+                onClick={() => setInfoOpen(!infoOpen)}
+                className="flex w-full items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/70 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                    {initials}
+                  </div>
+                  <span className="truncate max-w-[140px] font-semibold">{displayName}</span>
+                </div>
+                {infoOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                 ) : (
-                  initials
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
-              </div>
-              {/* Name + company + phone */}
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-foreground">
-                  {displayName}
-                </h3>
-                {contact.company && (
-                  <p className="truncate text-xs text-muted-foreground">
-                    {contact.company}
-                  </p>
-                )}
-                <button
-                  onClick={handleCopyPhone}
-                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <Phone className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{contact.phone}</span>
-                  {copied ? (
-                    <Check className="h-3 w-3 text-primary" />
-                  ) : (
-                    <Copy className="h-3 w-3" />
+              </button>
+
+              {infoOpen && (
+                <div className="p-3 space-y-3 border-t border-border/60">
+                  {/* Contact Info — compact horizontal row */}
+                  <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-2">
+                    <div className="min-w-0 flex-1">
+                      {contact.company && (
+                        <p className="truncate text-xs font-medium text-foreground">
+                          {contact.company}
+                        </p>
+                      )}
+                      <button
+                        onClick={handleCopyPhone}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground mt-0.5"
+                      >
+                        <Phone className="h-3 w-3 shrink-0 text-primary" />
+                        <span className="truncate font-mono">{contact.phone}</span>
+                        {copied ? (
+                          <Check className="h-3 w-3 text-primary" />
+                        ) : (
+                          <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Email (if present) */}
+                  {contact.email && (
+                    <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="truncate">{contact.email}</span>
+                    </div>
                   )}
-                </button>
-              </div>
-            </div>
 
-            {/* Email (if present) */}
-            {contact.email && (
-              <div className="mt-1.5 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-muted-foreground">
-                <Mail className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{contact.email}</span>
-              </div>
-            )}
-
-
-            {/* Divider */}
-            <div className="my-3 border-t border-border" />
-
-            {/* Tags */}
-            <div>
-              <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <TagIcon className="h-3 w-3" />
-                {tSidebar("tags")}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {tags.length === 0 ? (
-                  <p className="px-1 text-xs text-muted-foreground">
-                    {tSidebar("noTags")}
-                  </p>
-                ) : (
-                  tags.map((tag) => (
-                    <span
-                      key={tag.contact_tag_id}
-                      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                      style={{
-                        backgroundColor: `${tag.color}20`,
-                        color: tag.color,
-                      }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="my-3 border-t border-border" />
-
-            {/* Active Deals */}
-            <div>
-              <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <DollarSign className="h-3 w-3" />
-                {tSidebar("deals")}
-              </div>
-              <div className="mt-2 space-y-2">
-                {deals.length === 0 ? (
-                  <p className="px-1 text-xs text-muted-foreground">
-                    {tSidebar("noDeals")}
-                  </p>
-                ) : (
-                  deals.map((deal) => (
-                    <div
-                      key={deal.id}
-                      className="rounded-lg bg-muted px-3 py-2"
-                    >
-                      <p className="text-xs font-medium text-foreground">
-                        {deal.title}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          {deal.currency ?? "$"}
-                          {deal.value.toLocaleString()}
-                        </span>
-                        {deal.stage && (
+                  {/* Tags */}
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      <TagIcon className="h-3 w-3" />
+                      <span>{tSidebar("tags")}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {tags.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground italic">
+                          {tSidebar("noTags")}
+                        </p>
+                      ) : (
+                        tags.map((tag) => (
                           <span
-                            className="rounded-full px-1.5 py-0.5 text-[10px]"
+                            key={tag.contact_tag_id}
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                             style={{
-                              backgroundColor: `${deal.stage.color}20`,
-                              color: deal.stage.color,
+                              backgroundColor: `${tag.color}20`,
+                              color: tag.color,
                             }}
                           >
-                            {deal.stage.name}
+                            {tag.name}
                           </span>
-                        )}
-                      </div>
+                        ))
+                      )}
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+                  </div>
 
-            {/* Divider */}
-            <div className="my-3 border-t border-border" />
-
-            {/* Notes */}
-            <div>
-              <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <StickyNote className="h-3 w-3" />
-                {tSidebar("notes")}
-              </div>
-              <div className="mt-2">
-                <div className="flex gap-2">
-                  <textarea
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder={tSidebar("addNotePlaceholder")}
-                    rows={2}
-                    className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-auto bg-primary px-2 hover:bg-primary/90"
-                    onClick={handleAddNote}
-                    disabled={!newNote.trim() || addingNote}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-
-                <div className="mt-2 space-y-2">
-                  {notes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="rounded-lg bg-muted px-3 py-2"
-                    >
-                      <p className="whitespace-pre-wrap text-xs text-muted-foreground">
-                        {note.note_text}
-                      </p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {format(new Date(note.created_at), "MMM d, yyyy HH:mm")}
-                      </p>
+                  {/* Active Deals */}
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      <DollarSign className="h-3 w-3" />
+                      <span>{tSidebar("deals")}</span>
                     </div>
-                  ))}
+                    <div className="space-y-1.5">
+                      {deals.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground italic">
+                          {tSidebar("noDeals")}
+                        </p>
+                      ) : (
+                        deals.map((deal) => (
+                          <div
+                            key={deal.id}
+                            className="rounded-lg bg-muted/50 px-2.5 py-1.5 border border-border/60"
+                          >
+                            <p className="text-xs font-medium text-foreground">
+                              {deal.title}
+                            </p>
+                            <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                              <span>
+                                {deal.currency ?? "$"}
+                                {deal.value.toLocaleString()}
+                              </span>
+                              {deal.stage && (
+                                <span
+                                  className="rounded-full px-1.5 py-0.5 text-[10px]"
+                                  style={{
+                                    backgroundColor: `${deal.stage.color}20`,
+                                    color: deal.stage.color,
+                                  }}
+                                >
+                                  {deal.stage.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Customer Assets (Vehicles / Patient Records / Properties) */}
-              {accountId && contact && (
-                <CustomerAssetDrawer contactId={contact.id} accountId={accountId} />
               )}
             </div>
+
+            {/* 2. Internal Notes Accordion */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <button
+                onClick={() => setNotesOpen(!notesOpen)}
+                className="flex w-full items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/70 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-3.5 w-3.5 text-primary" />
+                  <span>Internal Notes ({notes.length})</span>
+                </div>
+                {notesOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+
+              {notesOpen && (
+                <div className="p-3 space-y-2 border-t border-border/60">
+                  <div className="flex gap-2">
+                    <textarea
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      placeholder={tSidebar("addNotePlaceholder")}
+                      rows={2}
+                      className="flex-1 resize-none rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-auto bg-primary px-2 hover:bg-primary/90 shrink-0"
+                      onClick={handleAddNote}
+                      disabled={!newNote.trim() || addingNote}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5 mt-2">
+                    {notes.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground italic">No internal notes added yet.</p>
+                    ) : (
+                      notes.map((note) => (
+                        <div
+                          key={note.id}
+                          className="rounded-lg bg-muted/40 p-2 border border-border/60 text-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>{format(new Date(note.created_at), "MMM d, yyyy HH:mm")}</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingNoteId(note.id);
+                                  setEditingNoteText(note.note_text);
+                                }}
+                                title="Edit Note"
+                                className="p-0.5 text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNote(note.id)}
+                                title="Delete Note"
+                                className="p-0.5 text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {editingNoteId === note.id ? (
+                            <div className="space-y-1.5 pt-1">
+                              <textarea
+                                rows={2}
+                                value={editingNoteText}
+                                onChange={(e) => setEditingNoteText(e.target.value)}
+                                className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                              />
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingNoteId(null);
+                                    setEditingNoteText("");
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground font-medium"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateNote(note.id)}
+                                  disabled={updatingNote}
+                                  className="px-2 py-0.5 rounded text-[10px] bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                                >
+                                  {updatingNote ? "Saving..." : "Save"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap text-xs text-foreground leading-normal font-normal">
+                              {note.note_text}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Customer Assets (Vehicles / Patient Records / Properties) */}
+            {accountId && contact && (
+              <CustomerAssetDrawer contactId={contact.id} accountId={accountId} />
+            )}
           </div>
         </ScrollArea>
       </div>

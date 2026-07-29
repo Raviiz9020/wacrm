@@ -10,6 +10,7 @@ import { latestUserMessage } from '@/lib/ai/query'
 import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError } from '@/lib/ai/types'
+import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
 
 /**
  * POST /api/ai/draft  (agent+)
@@ -97,6 +98,24 @@ export async function POST(request: Request) {
       config,
       latestUserMessage(messages),
     )
+
+    // Append customer's registered assets & visit history logs
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('contact_id')
+      .eq('id', conversationId)
+      .maybeSingle()
+
+    if (conv?.contact_id) {
+      const assetContext = await fetchCustomerAssetContext(
+        supabase,
+        accountId,
+        conv.contact_id,
+      )
+      if (assetContext) {
+        knowledge.push(assetContext)
+      }
+    }
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,

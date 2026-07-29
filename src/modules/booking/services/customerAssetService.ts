@@ -88,8 +88,8 @@ export async function createOrUpdateCustomerAsset(
  * Fetches all assets registered to a contact.
  */
 export async function getAssetsForContact(
-  accountId: string,
   contactId: string,
+  accountId: string,
   passedClient?: any
 ): Promise<CustomerAsset[]> {
   const client = getSupabaseClient(passedClient);
@@ -115,7 +115,7 @@ export async function recordAssetServiceHistory(
     accountId: string;
     assetId: string;
     appointmentId?: string | null;
-    serviceId: string;
+    serviceId?: string | null;
     serviceDate?: string;
     warrantyMonths?: number;
     nextServiceMonths?: number;
@@ -128,12 +128,27 @@ export async function recordAssetServiceHistory(
     accountId,
     assetId,
     appointmentId,
-    serviceId,
     serviceDate = new Date().toISOString(),
-    warrantyMonths = 36, // Default 3 years
-    nextServiceMonths = 6, // Default 6 months checkup
+    warrantyMonths = 36,
+    nextServiceMonths = 6,
     notes,
   } = input;
+
+  let finalServiceId = input.serviceId;
+  if (!finalServiceId) {
+    const { data: firstService } = await client
+      .from('booking_services')
+      .select('id')
+      .eq('account_id', accountId)
+      .limit(1)
+      .maybeSingle();
+
+    finalServiceId = firstService?.id || null;
+  }
+
+  if (!finalServiceId) {
+    throw new Error('Please create at least one Booking Service before logging visit history.');
+  }
 
   const serviceDateObj = new Date(serviceDate);
 
@@ -149,7 +164,7 @@ export async function recordAssetServiceHistory(
       account_id: accountId,
       asset_id: assetId,
       appointment_id: appointmentId || null,
-      service_id: serviceId,
+      service_id: finalServiceId,
       service_date: serviceDate,
       warranty_expiry_date: warrantyExpiryObj.toISOString().split('T')[0],
       next_recommended_service_date: nextServiceObj.toISOString().split('T')[0],
@@ -169,8 +184,8 @@ export async function recordAssetServiceHistory(
  * Gets service history timeline for a customer asset.
  */
 export async function getAssetServiceHistory(
-  accountId: string,
   assetId: string,
+  accountId: string,
   passedClient?: any
 ): Promise<CustomerAssetHistory[]> {
   const client = getSupabaseClient(passedClient);
@@ -186,4 +201,141 @@ export async function getAssetServiceHistory(
   }
 
   return data || [];
+}
+
+/**
+ * Deletes a customer asset by ID.
+ */
+export async function deleteCustomerAsset(
+  assetId: string,
+  accountId: string,
+  passedClient?: any
+): Promise<boolean> {
+  const client = getSupabaseClient(passedClient);
+  const { error } = await client
+    .from('customer_assets')
+    .delete()
+    .eq('id', assetId)
+    .eq('account_id', accountId);
+
+  if (error) {
+    throw new Error(`Failed to delete customer asset: ${error.message}`);
+  }
+  return true;
+}
+
+/**
+ * Updates a service history log entry notes.
+ */
+export async function updateAssetServiceHistory(
+  historyId: string,
+  accountId: string,
+  notes: string,
+  passedClient?: any
+): Promise<boolean> {
+  const client = getSupabaseClient(passedClient);
+  const { error } = await client
+    .from('customer_asset_history')
+    .update({ notes })
+    .eq('id', historyId)
+    .eq('account_id', accountId);
+
+  if (error) {
+    throw new Error(`Failed to update service history entry: ${error.message}`);
+  }
+  return true;
+}
+
+/**
+ * Deletes a service history log entry.
+ */
+export async function deleteAssetServiceHistory(
+  historyId: string,
+  accountId: string,
+  passedClient?: any
+): Promise<boolean> {
+  const client = getSupabaseClient(passedClient);
+  const { error } = await client
+    .from('customer_asset_history')
+    .delete()
+    .eq('id', historyId)
+    .eq('account_id', accountId);
+
+  if (error) {
+    throw new Error(`Failed to delete service history entry: ${error.message}`);
+  }
+  return true;
+}
+
+/**
+ * Formats a customer's assets and visit history logs for AI prompt context.
+ */
+export async function fetchCustomerAssetContext(
+  db: any,
+  accountId: string,
+  contactId: string
+): Promise<string> {
+  if (!accountId || !contactId || !db || typeof db.from !== 'function') return '';
+
+  try {
+    const assetQuery = db.from('customer_assets');
+    if (!assetQuery || typeof assetQuery.select !== 'function') return '';
+
+    const selectQuery = assetQuery.select('id, name, identifier_code, attributes, created_at');
+    if (!selectQuery || typeof selectQuery.eq !== 'function') return '';
+
+    const eq1 = selectQuery.eq('account_id', accountId);
+    if (!eq1 || typeof eq1.eq !== 'function') return '';
+
+    const { data: assets } = await eq1.eq('contact_id', contactId);
+    if (!assets || !Array.isArray(assets) || assets.length === 0) return '';
+
+    const assetIds = assets.map((a: any) => a.id);
+    const historyQuery = db.from('customer_asset_history');
+    if (!historyQuery || typeof historyQuery.select !== 'function') return '';
+
+    const historySelect = historyQuery.select('asset_id, service_date, notes, booking_services(name)');
+    if (!historySelect || typeof historySelect.eq !== 'function') return '';
+
+    const historyEq = historySelect.eq('account_id', accountId);
+    if (!historyEq || typeof historyEq.in !== 'function') return '';
+
+    const historyIn = historyEq.in('asset_id', assetIds);
+    if (!historyIn || typeof historyIn.order !== 'function') return '';
+
+    const historyOrder = historyIn.order('service_date', { ascending: false });
+    if (!historyOrder || typeof historyOrder.limit !== 'function') return '';
+
+    const { data: history } = await historyOrder.limit(10);
+
+    const historyByAsset = (history || []).reduce((acc: any, item: any) => {
+      acc[item.asset_id] = acc[item.asset_id] || [];
+      acc[item.asset_id].push(item);
+      return acc;
+    }, {});
+
+    const assetLines = assets.map((asset: any) => {
+      const attrs = asset.attributes || {};
+      const attrSummary = Object.entries(attrs)
+        .filter(([_, v]) => v)
+        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+        .join(', ');
+
+      const logs = historyByAsset[asset.id] || [];
+      const logSummary = logs
+        .map((l: any) => {
+          const dateStr = new Date(l.service_date).toLocaleDateString();
+          const svcName = l.booking_services?.name || 'Visit';
+          return `  - [${dateStr}] ${svcName}${l.notes ? `: ${l.notes}` : ''}`;
+        })
+        .join('\n');
+
+      return `- Record: "${asset.name}"${asset.identifier_code ? ` (ID/Plate: ${asset.identifier_code})` : ''}\n  Details: ${attrSummary || 'N/A'}\n  Visit Logs:\n${logSummary || '  - No past visit logs'}`;
+    });
+
+    return `\n\n## Customer Profile, Registered Assets & Visit Logs:\n${assetLines.join('\n\n')}`;
+  } catch (err) {
+    console.error('[AI Context] Failed to fetch customer asset context:', err);
+    return '';
+  }
 }

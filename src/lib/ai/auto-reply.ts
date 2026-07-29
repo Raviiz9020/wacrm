@@ -10,6 +10,7 @@ import { latestUserMessage } from './query'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { generateStructuredHandoffBriefing } from './handoff-summarizer'
+import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -252,6 +253,14 @@ export async function dispatchInboundToAiReply(
       config,
       latestUserMessage(messages),
     )
+
+    // Append customer's registered assets & visit history logs to AI prompt context
+    if (contactId) {
+      const assetContext = await fetchCustomerAssetContext(db, accountId, contactId)
+      if (assetContext) {
+        knowledge.push(assetContext)
+      }
+    }
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
