@@ -81,10 +81,11 @@ export function InboxAiAssistant({ conversationKey, onReset, resetRef }: InboxAi
     setSending(true);
 
     try {
-      const res = await fetch("/api/ai/playground", {
+      const res = await fetch("/api/ai/inbox-assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          conversation_id: conversationKey || undefined,
           messages: next.map((t) => ({ role: t.role, content: t.content })),
         }),
       });

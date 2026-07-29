@@ -504,7 +504,7 @@ export function BookingDashboard() {
         finalNotes = finalNotes ? `${variantTag} ${finalNotes}` : variantTag;
       }
 
-      await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, finalNotes);
+      const newAppt = await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, finalNotes);
 
       // Auto-log to customer asset service history if contact has assets
       if (account?.id && bookContactId) {
@@ -519,6 +519,9 @@ export function BookingDashboard() {
             await recordAssetServiceHistory({
               accountId: account.id,
               assetId: firstAsset.id,
+              appointmentId: newAppt?.id || null,
+              serviceId: bookServiceId,
+              serviceDate: bookDate ? new Date(bookDate).toISOString() : new Date().toISOString(),
               notes: logNotes,
             });
           }
@@ -725,11 +728,19 @@ export function BookingDashboard() {
                       </span>
                     </SelectTrigger>
                     <SelectContent className="border-border bg-card">
-                      {services.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name} ({s.duration_minutes}m)
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        const selectedProvider = providers.find((p) => p.id === bookProviderId);
+                        const providerServiceIds = selectedProvider?.services?.map((s) => s.service_id) || [];
+                        const availableServices = bookProviderId && providerServiceIds.length > 0
+                          ? services.filter((s) => providerServiceIds.includes(s.id))
+                          : services;
+
+                        return availableServices.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name} ({s.duration_minutes}m)
+                          </SelectItem>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -765,9 +776,19 @@ export function BookingDashboard() {
                   <Input
                     type="date"
                     id="date"
-                    className="border-border"
+                    className="border-border cursor-pointer"
                     value={bookDate}
                     onChange={e => setBookDate(e.target.value)}
+                    onClick={e => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {}
+                    }}
+                    onFocus={e => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {}
+                    }}
                     required
                   />
                 </div>

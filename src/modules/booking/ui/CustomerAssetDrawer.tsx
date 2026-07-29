@@ -33,11 +33,23 @@ import type { CustomerAsset, CustomerAssetHistory, AssetType } from '@/types';
 interface CustomerAssetDrawerProps {
   contactId: string;
   accountId: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
-export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawerProps) {
+export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: CustomerAssetDrawerProps) {
   const [assets, setAssets] = useState<CustomerAsset[]>([]);
   const [activeAssetType, setActiveAssetType] = useState<AssetType | null>(null);
+  const [internalDrawerOpen, setInternalDrawerOpen] = useState(false);
+  const drawerOpen = isOpen !== undefined ? isOpen : internalDrawerOpen;
+
+  const handleToggleDrawer = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalDrawerOpen((prev) => !prev);
+    }
+  };
   const [loading, setLoading] = useState<boolean>(true);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
@@ -230,8 +242,6 @@ export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawe
     { key: 'color', label: 'Color', type: 'text' },
   ];
 
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(true);
-
   const assetTypeName = activeAssetType?.name || 'Customer Asset';
 
   return (
@@ -240,7 +250,7 @@ export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawe
       <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold">
         <button
           type="button"
-          onClick={() => setDrawerOpen(!drawerOpen)}
+          onClick={handleToggleDrawer}
           className="flex items-center gap-2 text-foreground hover:text-primary transition-colors flex-1 text-left min-w-0"
         >
           <Car className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -250,7 +260,7 @@ export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawe
           <button
             type="button"
             onClick={() => {
-              if (!drawerOpen) setDrawerOpen(true);
+              if (!drawerOpen) handleToggleDrawer();
               if (showAddForm) resetForm();
               setShowAddForm(!showAddForm);
             }}
@@ -261,7 +271,7 @@ export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawe
           </button>
           <button
             type="button"
-            onClick={() => setDrawerOpen(!drawerOpen)}
+            onClick={handleToggleDrawer}
             className="text-muted-foreground hover:text-foreground"
           >
             {drawerOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

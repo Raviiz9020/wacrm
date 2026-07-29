@@ -116,14 +116,32 @@ export async function createAppointment(
     }
 
     if (targetAssetId) {
-      await client.from('customer_asset_history').insert({
-        account_id: accountId,
-        asset_id: targetAssetId,
-        appointment_id: appointment.id,
-        service_id: serviceId,
-        service_date: startTimeUTC,
-        notes: notes || null,
-      });
+      // Check if history log for this appointment already exists to prevent duplicate entries
+      const { data: existing } = await client
+        .from('customer_asset_history')
+        .select('id')
+        .eq('appointment_id', appointment.id)
+        .maybeSingle();
+
+      if (!existing) {
+        const { data: serviceObj } = await client
+          .from('booking_services')
+          .select('name')
+          .eq('id', serviceId)
+          .maybeSingle();
+
+        const serviceName = serviceObj?.name || 'Service';
+        const formattedNotes = notes ? `${serviceName}. ${notes}` : serviceName;
+
+        await client.from('customer_asset_history').insert({
+          account_id: accountId,
+          asset_id: targetAssetId,
+          appointment_id: appointment.id,
+          service_id: serviceId,
+          service_date: startTimeUTC,
+          notes: formattedNotes,
+        });
+      }
     }
   } catch (historyErr) {
     console.error('Auto-logging asset history failed in bookingService:', historyErr);
