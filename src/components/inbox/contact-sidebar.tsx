@@ -54,6 +54,9 @@ export function ContactSidebar({
   const [editingNoteText, setEditingNoteText] = useState<string>("");
   const [updatingNote, setUpdatingNote] = useState<boolean>(false);
 
+  const [infoOpen, setInfoOpen] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
+
   /**
    * Whether the AI assistant panel is expanded.
    * Defaults to `false` (collapsed by default to give full space to contact details & assets)
@@ -254,11 +257,8 @@ export function ContactSidebar({
     );
   }
 
-  const displayName = contact.name || contact.phone;
-  const initials = displayName.charAt(0).toUpperCase();
-
-  const [infoOpen, setInfoOpen] = useState(true);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const displayName = contact.name || contact.phone || "Unknown";
+  const initials = (displayName || "?").charAt(0).toUpperCase();
 
   return (
     <div className="flex h-full w-72 flex-col border-l border-border bg-card text-xs">
@@ -441,7 +441,15 @@ export function ContactSidebar({
                           className="rounded-lg bg-muted/40 p-2 border border-border/60 text-xs space-y-1"
                         >
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span>{format(new Date(note.created_at), "MMM d, yyyy HH:mm")}</span>
+                            <span>
+                              {(() => {
+                                try {
+                                  return note.created_at ? format(new Date(note.created_at), "MMM d, yyyy HH:mm") : "";
+                                } catch {
+                                  return "";
+                                }
+                              })()}
+                            </span>
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"

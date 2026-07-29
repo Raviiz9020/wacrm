@@ -509,11 +509,17 @@ export function CustomerAssetDrawer({ contactId, accountId }: CustomerAssetDrawe
                                 <span className="text-foreground font-semibold">Visit Log</span>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] text-muted-foreground">
-                                    {new Date(item.service_date).toLocaleDateString(undefined, {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      year: 'numeric',
-                                    })}
+                                    {(() => {
+                                      try {
+                                        return item.service_date ? new Date(item.service_date).toLocaleDateString(undefined, {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                        }) : '';
+                                      } catch {
+                                        return '';
+                                      }
+                                    })()}
                                   </span>
                                   <button
                                     type="button"

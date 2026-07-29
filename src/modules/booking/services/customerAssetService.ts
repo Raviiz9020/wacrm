@@ -92,19 +92,25 @@ export async function getAssetsForContact(
   accountId: string,
   passedClient?: any
 ): Promise<CustomerAsset[]> {
-  const client = getSupabaseClient(passedClient);
-  const { data, error } = await client
-    .from('customer_assets')
-    .select('*')
-    .eq('account_id', accountId)
-    .eq('contact_id', contactId)
-    .order('created_at', { ascending: false });
+  try {
+    const client = getSupabaseClient(passedClient);
+    const { data, error } = await client
+      .from('customer_assets')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('contact_id', contactId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to fetch contact assets: ${error.message}`);
+    if (error) {
+      console.error('Failed to fetch contact assets:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error in getAssetsForContact:', err);
+    return [];
   }
-
-  return data || [];
 }
 
 /**
@@ -188,19 +194,25 @@ export async function getAssetServiceHistory(
   accountId: string,
   passedClient?: any
 ): Promise<CustomerAssetHistory[]> {
-  const client = getSupabaseClient(passedClient);
-  const { data, error } = await client
-    .from('customer_asset_history')
-    .select('*, booking_services(name)')
-    .eq('account_id', accountId)
-    .eq('asset_id', assetId)
-    .order('service_date', { ascending: false });
+  try {
+    const client = getSupabaseClient(passedClient);
+    const { data, error } = await client
+      .from('customer_asset_history')
+      .select('*, booking_services(name)')
+      .eq('account_id', accountId)
+      .eq('asset_id', assetId)
+      .order('service_date', { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to fetch asset history: ${error.message}`);
+    if (error) {
+      console.error('Failed to fetch asset history:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error in getAssetServiceHistory:', err);
+    return [];
   }
-
-  return data || [];
 }
 
 /**
