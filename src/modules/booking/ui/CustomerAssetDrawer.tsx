@@ -516,7 +516,18 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
                           {historyList.map((item) => (
                             <div key={item.id} className="p-2 rounded bg-card border border-border text-[11px] space-y-1">
                               <div className="flex items-center justify-between font-medium">
-                                <span className="text-foreground font-semibold">Visit Log</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-foreground font-semibold">Visit Log</span>
+                                  {item.booking_appointments?.status === 'cancelled' && (
+                                    <span title="Cancelled" className="h-2 w-2 rounded-full bg-red-500 shrink-0 inline-block" />
+                                  )}
+                                  {(item.booking_appointments?.status === 'confirmed' || item.booking_appointments?.status === 'pending') && (
+                                    <span title="Booked" className="h-2 w-2 rounded-full bg-blue-500 shrink-0 inline-block" />
+                                  )}
+                                  {item.booking_appointments?.status === 'completed' && (
+                                    <span title="Completed" className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 inline-block" />
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] text-muted-foreground">
                                     {(() => {

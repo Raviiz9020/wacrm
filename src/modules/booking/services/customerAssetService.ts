@@ -198,7 +198,7 @@ export async function getAssetServiceHistory(
     const client = getSupabaseClient(passedClient);
     const { data, error } = await client
       .from('customer_asset_history')
-      .select('*, booking_services(name)')
+      .select('*, booking_services(name), booking_appointments(status)')
       .eq('account_id', accountId)
       .eq('asset_id', assetId)
       .order('service_date', { ascending: false });
@@ -290,62 +290,153 @@ export async function fetchCustomerAssetContext(
   if (!accountId || !contactId || !db || typeof db.from !== 'function') return '';
 
   try {
+    // 1. Fetch Contact Assigned Tags (Unconditional)
+    let tagsSummary = '';
+    const tagQuery = db.from('contact_tags');
+    if (tagQuery && typeof tagQuery.select === 'function') {
+      const tagSelect = tagQuery.select('tags(name, color)');
+      if (tagSelect && typeof tagSelect.eq === 'function') {
+        const { data: tagData } = await tagSelect.eq('contact_id', contactId);
+        if (tagData && Array.isArray(tagData) && tagData.length > 0) {
+          const tagNames = tagData.map((ct: any) => ct.tags?.name).filter(Boolean);
+          if (tagNames.length > 0) {
+            tagsSummary = `\n\n## Assigned Customer Tags:\n- ${tagNames.join(', ')}`;
+          }
+        }
+      }
+    }
+
+    // 2. Fetch Internal Staff Notes (Unconditional)
+    let notesSummary = '';
+    const notesQuery = db.from('contact_notes');
+    if (notesQuery && typeof notesQuery.select === 'function') {
+      const notesSelect = notesQuery.select('note_text, created_at');
+      if (notesSelect && typeof notesSelect.eq === 'function') {
+        const notesEq1 = notesSelect.eq('account_id', accountId);
+        if (notesEq1 && typeof notesEq1.eq === 'function') {
+          const notesEq2 = notesEq1.eq('contact_id', contactId);
+          if (notesEq2 && typeof notesEq2.order === 'function') {
+            const { data: notesData } = await notesEq2.order('created_at', { ascending: false });
+            if (notesData && Array.isArray(notesData) && notesData.length > 0) {
+              const noteLines = notesData.map((n: any) => `  - [${new Date(n.created_at).toLocaleDateString()}] ${n.note_text}`).join('\n');
+              notesSummary = `\n\n## Internal Staff Notes for Customer:\n${noteLines}`;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Fetch Active CRM Pipeline Deals (Unconditional)
+    let dealsSummary = '';
+    const dealsQuery = db.from('deals');
+    if (dealsQuery && typeof dealsQuery.select === 'function') {
+      const dealsSelect = dealsQuery.select('title, value, currency, stage:pipeline_stages(name)');
+      if (dealsSelect && typeof dealsSelect.eq === 'function') {
+        const dealsEq1 = dealsSelect.eq('account_id', accountId);
+        if (dealsEq1 && typeof dealsEq1.eq === 'function') {
+          const { data: dealsData } = await dealsEq1.eq('contact_id', contactId);
+          if (dealsData && Array.isArray(dealsData) && dealsData.length > 0) {
+            const dealLines = dealsData.map((d: any) => `  - "${d.title}" | Value: ${d.currency || '$'}${d.value} | Stage: ${d.stage?.name || 'N/A'}`).join('\n');
+            dealsSummary = `\n\n## Active CRM Pipeline Deals:\n${dealLines}`;
+          }
+        }
+      }
+    }
+
+    // 4. Fetch Database Appointments for exact count and status breakdown (Unconditional)
+    let apptSummary = '';
+    const apptQuery = db.from('booking_appointments');
+    if (apptQuery && typeof apptQuery.select === 'function') {
+      const apptSelect = apptQuery.select('id, start_time, end_time, status, notes, booking_services(name), booking_providers(name)');
+      if (apptSelect && typeof apptSelect.eq === 'function') {
+        const apptEq1 = apptSelect.eq('account_id', accountId);
+        if (apptEq1 && typeof apptEq1.eq === 'function') {
+          const apptEq2 = apptEq1.eq('contact_id', contactId);
+          if (apptEq2 && typeof apptEq2.order === 'function') {
+            const { data: appointments } = await apptEq2.order('start_time', { ascending: false });
+
+            if (appointments && Array.isArray(appointments) && appointments.length > 0) {
+              const counts = {
+                total: appointments.length,
+                confirmed: appointments.filter((a: any) => a.status === 'confirmed').length,
+                cancelled: appointments.filter((a: any) => a.status === 'cancelled').length,
+                completed: appointments.filter((a: any) => a.status === 'completed').length,
+                pending: appointments.filter((a: any) => a.status === 'pending').length,
+              };
+
+              const listLines = appointments.map((a: any) => {
+                const dt = a.start_time ? new Date(a.start_time).toLocaleString() : 'N/A';
+                const svc = a.booking_services?.name || 'Service';
+                const prov = a.booking_providers?.name || 'Staff';
+                return `  - [${dt}] ${svc} with ${prov} | Status: ${(a.status || 'unknown').toUpperCase()}${a.notes ? ` (Notes: ${a.notes})` : ''}`;
+              }).join('\n');
+
+              apptSummary = `\n\n## Customer Appointments & Status Breakdown (Database Records):\n- Total Bookings: ${counts.total} (Confirmed: ${counts.confirmed}, Cancelled: ${counts.cancelled}, Completed: ${counts.completed}, Pending: ${counts.pending})\n- Full Appointment List:\n${listLines}`;
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Fetch Customer Assets & Asset History (Conditional on assets existing)
+    let assetContextBlock = '';
     const assetQuery = db.from('customer_assets');
-    if (!assetQuery || typeof assetQuery.select !== 'function') return '';
+    if (assetQuery && typeof assetQuery.select === 'function') {
+      const selectQuery = assetQuery.select('id, name, identifier_code, attributes, created_at');
+      if (selectQuery && typeof selectQuery.eq === 'function') {
+        const eq1 = selectQuery.eq('account_id', accountId);
+        if (eq1 && typeof eq1.eq === 'function') {
+          const { data: assets } = await eq1.eq('contact_id', contactId);
+          if (assets && Array.isArray(assets) && assets.length > 0) {
+            const assetIds = assets.map((a: any) => a.id);
+            const historyQuery = db.from('customer_asset_history');
+            if (historyQuery && typeof historyQuery.select === 'function') {
+              const historySelect = historyQuery.select('asset_id, service_date, notes, booking_services(name)');
+              if (historySelect && typeof historySelect.eq === 'function') {
+                const historyEq = historySelect.eq('account_id', accountId);
+                if (historyEq && typeof historyEq.in === 'function') {
+                  const historyIn = historyEq.in('asset_id', assetIds);
+                  if (historyIn && typeof historyIn.order === 'function') {
+                    const historyOrder = historyIn.order('service_date', { ascending: false });
+                    if (historyOrder && typeof historyOrder.limit === 'function') {
+                      const { data: history } = await historyOrder.limit(50);
+                      const historyByAsset = (history || []).reduce((acc: any, item: any) => {
+                        acc[item.asset_id] = acc[item.asset_id] || [];
+                        acc[item.asset_id].push(item);
+                        return acc;
+                      }, {});
 
-    const selectQuery = assetQuery.select('id, name, identifier_code, attributes, created_at');
-    if (!selectQuery || typeof selectQuery.eq !== 'function') return '';
+                      const assetLines = assets.map((asset: any) => {
+                        const attrs = asset.attributes || {};
+                        const attrSummary = Object.entries(attrs)
+                          .filter(([_, v]) => v)
+                          .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                          .join(', ');
 
-    const eq1 = selectQuery.eq('account_id', accountId);
-    if (!eq1 || typeof eq1.eq !== 'function') return '';
+                        const logs = historyByAsset[asset.id] || [];
+                        const logSummary = logs
+                          .map((l: any) => {
+                            const dateStr = new Date(l.service_date).toLocaleDateString();
+                            const svcName = l.booking_services?.name || 'Visit';
+                            return `  - [${dateStr}] ${svcName}${l.notes ? `: ${l.notes}` : ''}`;
+                          })
+                          .join('\n');
 
-    const { data: assets } = await eq1.eq('contact_id', contactId);
-    if (!assets || !Array.isArray(assets) || assets.length === 0) return '';
+                        return `- Record: "${asset.name}"${asset.identifier_code ? ` (ID/Plate: ${asset.identifier_code})` : ''}\n  Details: ${attrSummary || 'N/A'}\n  Visit Logs:\n${logSummary || '  - No past visit logs'}`;
+                      });
 
-    const assetIds = assets.map((a: any) => a.id);
-    const historyQuery = db.from('customer_asset_history');
-    if (!historyQuery || typeof historyQuery.select !== 'function') return '';
+                      assetContextBlock = `\n\n## Customer Profile, Registered Assets & Visit Logs:\n${assetLines.join('\n\n')}`;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-    const historySelect = historyQuery.select('asset_id, service_date, notes, booking_services(name)');
-    if (!historySelect || typeof historySelect.eq !== 'function') return '';
-
-    const historyEq = historySelect.eq('account_id', accountId);
-    if (!historyEq || typeof historyEq.in !== 'function') return '';
-
-    const historyIn = historyEq.in('asset_id', assetIds);
-    if (!historyIn || typeof historyIn.order !== 'function') return '';
-
-    const historyOrder = historyIn.order('service_date', { ascending: false });
-    if (!historyOrder || typeof historyOrder.limit !== 'function') return '';
-
-    const { data: history } = await historyOrder.limit(10);
-
-    const historyByAsset = (history || []).reduce((acc: any, item: any) => {
-      acc[item.asset_id] = acc[item.asset_id] || [];
-      acc[item.asset_id].push(item);
-      return acc;
-    }, {});
-
-    const assetLines = assets.map((asset: any) => {
-      const attrs = asset.attributes || {};
-      const attrSummary = Object.entries(attrs)
-        .filter(([_, v]) => v)
-        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
-        .join(', ');
-
-      const logs = historyByAsset[asset.id] || [];
-      const logSummary = logs
-        .map((l: any) => {
-          const dateStr = new Date(l.service_date).toLocaleDateString();
-          const svcName = l.booking_services?.name || 'Visit';
-          return `  - [${dateStr}] ${svcName}${l.notes ? `: ${l.notes}` : ''}`;
-        })
-        .join('\n');
-
-      return `- Record: "${asset.name}"${asset.identifier_code ? ` (ID/Plate: ${asset.identifier_code})` : ''}\n  Details: ${attrSummary || 'N/A'}\n  Visit Logs:\n${logSummary || '  - No past visit logs'}`;
-    });
-
-    return `\n\n## Customer Profile, Registered Assets & Visit Logs:\n${assetLines.join('\n\n')}`;
+    return `${tagsSummary}${notesSummary}${dealsSummary}${apptSummary}${assetContextBlock}`;
   } catch (err) {
     console.error('[AI Context] Failed to fetch customer asset context:', err);
     return '';

@@ -687,6 +687,8 @@ export interface CustomerAssetHistory {
   notes?: string | null;
   metadata?: Record<string, unknown>;
   created_at: string;
+  booking_services?: { name: string } | null;
+  booking_appointments?: { status: string } | null;
 }
 
 export interface BookingServicePriceMatrix {
