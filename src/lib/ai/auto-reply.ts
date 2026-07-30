@@ -11,6 +11,7 @@ import { engineSendText } from '@/lib/flows/meta-send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { generateStructuredHandoffBriefing } from './handoff-summarizer'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
+import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -260,6 +261,12 @@ export async function dispatchInboundToAiReply(
       if (assetContext) {
         knowledge.push(assetContext)
       }
+    }
+
+    // Append account's active services & dynamic matrix pricing catalog to AI prompt context
+    const matrixPricingContext = await fetchServiceMatrixPricingContext(db, accountId)
+    if (matrixPricingContext) {
+      knowledge.push(matrixPricingContext)
     }
 
     const systemPrompt = buildSystemPrompt({

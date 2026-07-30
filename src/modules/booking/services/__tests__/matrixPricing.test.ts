@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateServiceQuote } from '../matrixPricingService';
+import { calculateServiceQuote, fetchServiceMatrixPricingContext } from '../matrixPricingService';
 import { recordAssetServiceHistory } from '../customerAssetService';
 
 describe('Matrix Pricing & Service Quote Engine', () => {
@@ -123,6 +123,60 @@ describe('Matrix Pricing & Service Quote Engine', () => {
     expect(quote.price).toBe(500);
     expect(quote.durationMinutes).toBe(30);
   });
+
+  it('formats active services and matrix pricing rules for AI prompt context', async () => {
+    const mockSupabase = {
+      from: (table: string) => {
+        if (table === 'booking_services') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  order: async () => ({
+                    data: [
+                      {
+                        id: 'svc-rc',
+                        name: 'Root Canal Therapy',
+                        description: 'Endodontic tooth treatment',
+                        price: 4500,
+                        currency: '₹',
+                        duration_minutes: 60,
+                      },
+                    ],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'booking_service_price_matrix') {
+          return {
+            select: () => ({
+              eq: () => ({
+                in: async () => ({
+                  data: [
+                    { service_id: 'svc-rc', attribute_key: 'tooth_type', attribute_value: 'Front Tooth', price: 4500, duration_minutes: 60 },
+                    { service_id: 'svc-rc', attribute_key: 'tooth_type', attribute_value: 'Molar', price: 7500, duration_minutes: 90 },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      },
+    };
+
+    const context = await fetchServiceMatrixPricingContext(mockSupabase, 'acc-123');
+
+    expect(context).toContain('## Active Services & Dynamic Matrix Pricing Catalog:');
+    expect(context).toContain('**Root Canal Therapy**');
+    expect(context).toContain('Base Price: ₹4500 | Duration: 60 mins');
+    expect(context).toContain('tooth type: Front Tooth => ₹4500 (60 mins)');
+    expect(context).toContain('tooth type: Molar => ₹7500 (90 mins)');
+  });
 });
 
 describe('Customer Asset Service History Engine', () => {
@@ -158,3 +212,4 @@ describe('Customer Asset Service History Engine', () => {
     expect(insertedPayload.next_recommended_service_date).toBe('2026-07-01');
   });
 });
+

@@ -11,6 +11,7 @@ import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
+import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
 
 /**
  * POST /api/ai/inbox-assistant  (agent+)
@@ -124,6 +125,12 @@ export async function POST(request: Request) {
           .join('\n')
         knowledge.push(`--- RECENT WHATSAPP CHAT TRANSCRIPT WITH THIS CUSTOMER ---\n${chatSnippet}`)
       }
+    }
+
+    // Append active services & dynamic matrix pricing catalog
+    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
+    if (matrixPricingContext) {
+      knowledge.push(matrixPricingContext)
     }
 
     // 6. Build unified System Prompt for internal staff assistant

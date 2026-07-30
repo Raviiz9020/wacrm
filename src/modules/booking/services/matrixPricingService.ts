@@ -167,3 +167,85 @@ export async function deleteMatrixRule(
 
   return true;
 }
+
+/**
+ * Formats all active booking services and their dynamic matrix pricing rules for AI prompt context.
+ */
+export async function fetchServiceMatrixPricingContext(
+  db: any,
+  accountId: string
+): Promise<string> {
+  if (!accountId || !db || typeof db.from !== 'function') return '';
+
+  try {
+    const svcQuery = db.from('booking_services');
+    if (!svcQuery || typeof svcQuery.select !== 'function') return '';
+    const svcSelect = svcQuery.select('id, name, description, price, currency, duration_minutes');
+    if (!svcSelect || typeof svcSelect.eq !== 'function') return '';
+    const svcEq1 = svcSelect.eq('account_id', accountId);
+    if (!svcEq1 || typeof svcEq1.eq !== 'function') return '';
+    const svcEq2 = svcEq1.eq('is_active', true);
+    
+    let services: any[] | null = null;
+    if (svcEq2 && typeof svcEq2.order === 'function') {
+      const res = await svcEq2.order('name', { ascending: true });
+      services = res?.data || null;
+    } else if (svcEq2 && typeof svcEq2.then === 'function') {
+      const res = await svcEq2;
+      services = res?.data || null;
+    }
+
+    if (!services || !Array.isArray(services) || services.length === 0) return '';
+
+    const serviceIds = services.map((s: any) => s.id);
+    let matrixRules: any[] | null = null;
+
+    const matrixQuery = db.from('booking_service_price_matrix');
+    if (matrixQuery && typeof matrixQuery.select === 'function') {
+      const matrixSelect = matrixQuery.select('service_id, attribute_key, attribute_value, price, duration_minutes');
+      if (matrixSelect && typeof matrixSelect.eq === 'function') {
+        const matrixEq = matrixSelect.eq('account_id', accountId);
+        if (matrixEq && typeof matrixEq.in === 'function') {
+          const res = await matrixEq.in('service_id', serviceIds);
+          matrixRules = res?.data || null;
+        }
+      }
+    }
+
+    const rulesByService = (matrixRules || []).reduce((acc: Record<string, any[]>, rule: any) => {
+      acc[rule.service_id] = acc[rule.service_id] || [];
+      acc[rule.service_id].push(rule);
+      return acc;
+    }, {});
+
+    const serviceBlocks = services.map((s: any) => {
+      const currency = s.currency || '₹';
+      const basePriceStr = s.price !== null && s.price !== undefined ? `${currency}${s.price}` : 'Price on Request';
+      const baseDurationStr = s.duration_minutes ? `${s.duration_minutes} mins` : '';
+
+      let block = `- **${s.name}**: Base Price: ${basePriceStr}${baseDurationStr ? ` | Duration: ${baseDurationStr}` : ''}`;
+      if (s.description) {
+        block += `\n  Description: ${s.description}`;
+      }
+
+      const rules = rulesByService[s.id] || [];
+      if (rules.length > 0) {
+        const ruleLines = rules.map((r: any) => {
+          const rulePriceStr = `${currency}${r.price}`;
+          const ruleDurStr = r.duration_minutes ? ` (${r.duration_minutes} mins)` : '';
+          const attrKeyLabel = r.attribute_key ? r.attribute_key.replace(/_/g, ' ') : 'Variant';
+          return `    - ${attrKeyLabel}: ${r.attribute_value} => ${rulePriceStr}${ruleDurStr}`;
+        });
+        block += `\n  - Dynamic Matrix Pricing Rules / Variants:\n${ruleLines.join('\n')}`;
+      }
+      return block;
+    });
+
+    return `\n\n## Active Services & Dynamic Matrix Pricing Catalog:\n${serviceBlocks.join('\n\n')}`;
+  } catch (err) {
+    console.error('[AI Context] Failed to fetch service matrix pricing context:', err);
+    return '';
+  }
+}
+
+

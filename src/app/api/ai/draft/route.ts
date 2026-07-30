@@ -11,6 +11,7 @@ import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError } from '@/lib/ai/types'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
+import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
 
 /**
  * POST /api/ai/draft  (agent+)
@@ -115,6 +116,12 @@ export async function POST(request: Request) {
       if (assetContext) {
         knowledge.push(assetContext)
       }
+    }
+
+    // Append active services & dynamic matrix pricing catalog
+    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
+    if (matrixPricingContext) {
+      knowledge.push(matrixPricingContext)
     }
 
     const systemPrompt = buildSystemPrompt({

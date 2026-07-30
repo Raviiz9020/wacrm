@@ -7,6 +7,7 @@ import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
+import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
 
 // Keep the tested transcript bounded, mirroring the live context window.
 const MAX_TURNS = 20
@@ -78,6 +79,13 @@ export async function POST(request: Request) {
       config,
       latestUserMessage(messages),
     )
+
+    // Append active services & dynamic matrix pricing catalog
+    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
+    if (matrixPricingContext) {
+      knowledge.push(matrixPricingContext)
+    }
+
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
