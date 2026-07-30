@@ -91,37 +91,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // Ground the draft in the account's knowledge base (best-effort —
-    // returns [] when there's no KB or retrieval fails).
-    const knowledge = await retrieveKnowledge(
-      supabase,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
-
-    // Append customer's registered assets & visit history logs
     const { data: conv } = await supabase
       .from('conversations')
       .select('contact_id')
       .eq('id', conversationId)
       .maybeSingle()
 
-    if (conv?.contact_id) {
-      const assetContext = await fetchCustomerAssetContext(
-        supabase,
-        accountId,
-        conv.contact_id,
-      )
-      if (assetContext) {
-        knowledge.push(assetContext)
-      }
-    }
+    // Ground the draft in knowledge base, customer assets, and matrix pricing concurrently.
+    const [knowledge, assetContext, matrixPricingContext] = await Promise.all([
+      retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)).catch(() => [] as string[]),
+      conv?.contact_id
+        ? fetchCustomerAssetContext(supabase, accountId, conv.contact_id).catch(() => '')
+        : Promise.resolve(''),
+      fetchServiceMatrixPricingContext(supabase, accountId).catch(() => ''),
+    ])
 
-    // Append active services & dynamic matrix pricing catalog
-    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
     if (matrixPricingContext) {
-      knowledge.push(matrixPricingContext)
+      knowledge.unshift(matrixPricingContext)
+    }
+    if (assetContext) {
+      knowledge.push(assetContext)
     }
 
     const systemPrompt = buildSystemPrompt({

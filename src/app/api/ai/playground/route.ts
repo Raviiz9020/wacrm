@@ -73,17 +73,14 @@ export async function POST(request: Request) {
       )
     }
 
-    const knowledge = await retrieveKnowledge(
-      supabase,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
+    // Ground in knowledge base and matrix pricing concurrently.
+    const [knowledge, matrixPricingContext] = await Promise.all([
+      retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)).catch(() => [] as string[]),
+      fetchServiceMatrixPricingContext(supabase, accountId).catch(() => ''),
+    ])
 
-    // Append active services & dynamic matrix pricing catalog
-    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
     if (matrixPricingContext) {
-      knowledge.push(matrixPricingContext)
+      knowledge.unshift(matrixPricingContext)
     }
 
     const systemPrompt = buildSystemPrompt({

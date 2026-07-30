@@ -88,49 +88,43 @@ export async function POST(request: Request) {
       )
     }
 
-    // 4. Retrieve KB Embeddings for the current question
     const latestQuery = latestUserMessage(assistantMessages)
-    const knowledge = await retrieveKnowledge(
-      supabase,
-      accountId,
-      config,
-      latestQuery,
-    )
 
-    // 5. Look up customer's profile, assets, treatment history & chat transcript if conversation_id provided
+    let contactId: string | null = null
     if (conversationId) {
       const { data: conversation } = await supabase
         .from('conversations')
         .select('contact_id')
         .eq('id', conversationId)
         .maybeSingle()
-
       if (conversation?.contact_id) {
-        const assetContext = await fetchCustomerAssetContext(
-          supabase,
-          accountId,
-          conversation.contact_id,
-        )
-        if (assetContext) {
-          knowledge.push(assetContext)
-        }
-      }
-
-      // Include recent WhatsApp conversation context as background knowledge
-      const chatMessages = await buildConversationContext(supabase, conversationId).catch(() => [])
-      if (chatMessages.length > 0) {
-        const chatSnippet = chatMessages
-          .slice(-10)
-          .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
-          .join('\n')
-        knowledge.push(`--- RECENT WHATSAPP CHAT TRANSCRIPT WITH THIS CUSTOMER ---\n${chatSnippet}`)
+        contactId = conversation.contact_id
       }
     }
 
-    // Append active services & dynamic matrix pricing catalog
-    const matrixPricingContext = await fetchServiceMatrixPricingContext(supabase, accountId)
+    const [knowledge, assetContext, chatMessages, matrixPricingContext] = await Promise.all([
+      retrieveKnowledge(supabase, accountId, config, latestQuery).catch(() => [] as string[]),
+      contactId
+        ? fetchCustomerAssetContext(supabase, accountId, contactId).catch(() => '')
+        : Promise.resolve(''),
+      conversationId
+        ? buildConversationContext(supabase, conversationId).catch(() => [])
+        : Promise.resolve([]),
+      fetchServiceMatrixPricingContext(supabase, accountId).catch(() => ''),
+    ])
+
     if (matrixPricingContext) {
-      knowledge.push(matrixPricingContext)
+      knowledge.unshift(matrixPricingContext)
+    }
+    if (assetContext) {
+      knowledge.push(assetContext)
+    }
+    if (chatMessages.length > 0) {
+      const chatSnippet = chatMessages
+        .slice(-10)
+        .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
+        .join('\n')
+      knowledge.push(`--- RECENT WHATSAPP CHAT TRANSCRIPT WITH THIS CUSTOMER ---\n${chatSnippet}`)
     }
 
     // 6. Build unified System Prompt for internal staff assistant

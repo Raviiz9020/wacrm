@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { calculateServiceQuote, fetchServiceMatrixPricingContext } from '../matrixPricingService';
-import { recordAssetServiceHistory } from '../customerAssetService';
+import { fetchCustomerAssetContext, recordAssetServiceHistory } from '../customerAssetService';
 
 describe('Matrix Pricing & Service Quote Engine', () => {
   it('returns dynamic matrix price override when category rule exists', async () => {
@@ -131,20 +131,18 @@ describe('Matrix Pricing & Service Quote Engine', () => {
           return {
             select: () => ({
               eq: () => ({
-                eq: () => ({
-                  order: async () => ({
-                    data: [
-                      {
-                        id: 'svc-rc',
-                        name: 'Root Canal Therapy',
-                        description: 'Endodontic tooth treatment',
-                        price: 4500,
-                        currency: '₹',
-                        duration_minutes: 60,
-                      },
-                    ],
-                    error: null,
-                  }),
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'svc-rc',
+                      name: 'Root Canal Therapy',
+                      description: 'Endodontic tooth treatment',
+                      price: 4500,
+                      currency: '₹',
+                      duration_minutes: 60,
+                    },
+                  ],
+                  error: null,
                 }),
               }),
             }),
@@ -176,6 +174,36 @@ describe('Matrix Pricing & Service Quote Engine', () => {
     expect(context).toContain('Base Price: ₹4500 | Duration: 60 mins');
     expect(context).toContain('tooth type: Front Tooth => ₹4500 (60 mins)');
     expect(context).toContain('tooth type: Molar => ₹7500 (90 mins)');
+  });
+
+  it('executes customer asset context lookups in parallel and returns structured summary', async () => {
+    const mockSupabase = {
+      from: (table: string) => {
+        if (table === 'contact_tags') {
+          return { select: () => ({ eq: async () => ({ data: [{ tags: { name: 'VIP Customer' } }] }) }) };
+        }
+        if (table === 'contact_notes') {
+          return { select: () => ({ eq: () => ({ eq: () => ({ order: async () => ({ data: [{ note_text: 'Prefers morning appointments', created_at: '2026-07-01' }] }) }) }) }) };
+        }
+        if (table === 'deals') {
+          return { select: () => ({ eq: () => ({ eq: async () => ({ data: [{ title: 'Root Canal + Crown Package', value: 7500, currency: '₹', stage: { name: 'Proposal Sent' } }] }) }) }) };
+        }
+        if (table === 'booking_appointments') {
+          return { select: () => ({ eq: () => ({ eq: () => ({ order: async () => ({ data: [{ start_time: '2026-08-01T10:00:00Z', status: 'confirmed', booking_services: { name: 'Root Canal' }, booking_providers: { name: 'Dr. Smith' } }] }) }) }) }) };
+        }
+        if (table === 'customer_assets') {
+          return { select: () => ({ eq: () => ({ eq: async () => ({ data: [] }) }) }) };
+        }
+        return {};
+      },
+    };
+
+    const context = await fetchCustomerAssetContext(mockSupabase, 'acc-123', 'contact-456');
+
+    expect(context).toContain('VIP Customer');
+    expect(context).toContain('Prefers morning appointments');
+    expect(context).toContain('Root Canal + Crown Package');
+    expect(context).toContain('Total Bookings: 1');
   });
 });
 
@@ -212,4 +240,5 @@ describe('Customer Asset Service History Engine', () => {
     expect(insertedPayload.next_recommended_service_date).toBe('2026-07-01');
   });
 });
+
 

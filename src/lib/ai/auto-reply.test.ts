@@ -50,6 +50,16 @@ vi.mock('./admin-client', () => ({
           insert: () => Promise.resolve({ error: null }),
         }
       }
+      if (table === 'booking_services' || table === 'booking_service_price_matrix') {
+        const chain: any = {
+          select: () => chain,
+          eq: () => chain,
+          in: () => Promise.resolve({ data: [], error: null }),
+          order: () => Promise.resolve({ data: [], error: null }),
+          then: (cb: any) => Promise.resolve({ data: [], error: null }).then(cb),
+        }
+        return chain
+      }
       return {
         select: () => ({
           eq: () => ({

@@ -178,39 +178,20 @@ export async function fetchServiceMatrixPricingContext(
   if (!accountId || !db || typeof db.from !== 'function') return '';
 
   try {
-    const svcQuery = db.from('booking_services');
-    if (!svcQuery || typeof svcQuery.select !== 'function') return '';
-    const svcSelect = svcQuery.select('id, name, description, price, currency, duration_minutes');
-    if (!svcSelect || typeof svcSelect.eq !== 'function') return '';
-    const svcEq1 = svcSelect.eq('account_id', accountId);
-    if (!svcEq1 || typeof svcEq1.eq !== 'function') return '';
-    const svcEq2 = svcEq1.eq('is_active', true);
-    
-    let services: any[] | null = null;
-    if (svcEq2 && typeof svcEq2.order === 'function') {
-      const res = await svcEq2.order('name', { ascending: true });
-      services = res?.data || null;
-    } else if (svcEq2 && typeof svcEq2.then === 'function') {
-      const res = await svcEq2;
-      services = res?.data || null;
-    }
+    const { data: services, error: serviceErr } = await db
+      .from('booking_services')
+      .select('id, name, description, price, currency, duration_minutes')
+      .eq('account_id', accountId)
+      .order('name', { ascending: true });
 
-    if (!services || !Array.isArray(services) || services.length === 0) return '';
+    if (serviceErr || !services || !Array.isArray(services) || services.length === 0) return '';
 
     const serviceIds = services.map((s: any) => s.id);
-    let matrixRules: any[] | null = null;
-
-    const matrixQuery = db.from('booking_service_price_matrix');
-    if (matrixQuery && typeof matrixQuery.select === 'function') {
-      const matrixSelect = matrixQuery.select('service_id, attribute_key, attribute_value, price, duration_minutes');
-      if (matrixSelect && typeof matrixSelect.eq === 'function') {
-        const matrixEq = matrixSelect.eq('account_id', accountId);
-        if (matrixEq && typeof matrixEq.in === 'function') {
-          const res = await matrixEq.in('service_id', serviceIds);
-          matrixRules = res?.data || null;
-        }
-      }
-    }
+    const { data: matrixRules } = await db
+      .from('booking_service_price_matrix')
+      .select('service_id, attribute_key, attribute_value, price, duration_minutes')
+      .eq('account_id', accountId)
+      .in('service_id', serviceIds);
 
     const rulesByService = (matrixRules || []).reduce((acc: Record<string, any[]>, rule: any) => {
       acc[rule.service_id] = acc[rule.service_id] || [];

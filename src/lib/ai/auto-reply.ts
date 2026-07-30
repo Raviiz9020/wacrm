@@ -247,26 +247,18 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    // Ground the reply in the account's knowledge base (best-effort).
-    const knowledge = await retrieveKnowledge(
-      db,
-      accountId,
-      config,
-      latestUserMessage(messages),
-    )
+    // Ground the reply in the account's knowledge base, customer assets, and matrix pricing concurrently.
+    const [knowledge, assetContext, matrixPricingContext] = await Promise.all([
+      retrieveKnowledge(db, accountId, config, latestUserMessage(messages)).catch(() => [] as string[]),
+      contactId ? fetchCustomerAssetContext(db, accountId, contactId).catch(() => '') : Promise.resolve(''),
+      fetchServiceMatrixPricingContext(db, accountId).catch(() => ''),
+    ])
 
-    // Append customer's registered assets & visit history logs to AI prompt context
-    if (contactId) {
-      const assetContext = await fetchCustomerAssetContext(db, accountId, contactId)
-      if (assetContext) {
-        knowledge.push(assetContext)
-      }
-    }
-
-    // Append account's active services & dynamic matrix pricing catalog to AI prompt context
-    const matrixPricingContext = await fetchServiceMatrixPricingContext(db, accountId)
     if (matrixPricingContext) {
-      knowledge.push(matrixPricingContext)
+      knowledge.unshift(matrixPricingContext)
+    }
+    if (assetContext) {
+      knowledge.push(assetContext)
     }
 
     const systemPrompt = buildSystemPrompt({
