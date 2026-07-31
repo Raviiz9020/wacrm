@@ -938,63 +938,71 @@ export function BookingDashboard() {
           </div>
 
           {/* KPI metrics cards row */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 my-2">
-            <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card hover:shadow-md transition-all duration-200">
-              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-                <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Today's Bookings</p>
-                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{todayAppts.length}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 my-2">
+            <Card className="border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card hover:shadow-sm transition-all duration-200">
+              <CardContent className="p-2.5 flex items-center gap-3">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary shrink-0">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground truncate">Today's Bookings</p>
+                    <p className="text-sm font-bold text-foreground leading-none">{todayAppts.length}</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground truncate mt-0.5">
                     {confirmedToday.length} confirmed • {cancelledToday.length} cancelled
                   </p>
                 </div>
-                <div className="p-2 sm:p-2.5 bg-primary/15 rounded-xl text-primary shrink-0">
-                  <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-card to-card hover:shadow-md transition-all duration-200">
-              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-                <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Completed Today</p>
-                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{passedToday.length}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
+            <Card className="border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 via-card to-card hover:shadow-sm transition-all duration-200">
+              <CardContent className="p-2.5 flex items-center gap-3">
+                <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 shrink-0">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground truncate">Completed Today</p>
+                    <p className="text-sm font-bold text-foreground leading-none">{passedToday.length}</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground truncate mt-0.5">
                     {remainingTodayCount} remaining today
                   </p>
                 </div>
-                <div className="p-2 sm:p-2.5 bg-emerald-500/15 rounded-xl text-emerald-500 shrink-0">
-                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-card to-card hover:shadow-md transition-all duration-200">
-              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-                <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Providers Active</p>
-                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{totalActiveProviders}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
+            <Card className="border border-sky-500/20 bg-gradient-to-br from-sky-500/5 via-card to-card hover:shadow-sm transition-all duration-200">
+              <CardContent className="p-2.5 flex items-center gap-3">
+                <div className="p-1.5 bg-sky-500/10 rounded-lg text-sky-500 shrink-0">
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground truncate">Providers Active</p>
+                    <p className="text-sm font-bold text-foreground leading-none">{totalActiveProviders}</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground truncate mt-0.5">
                     All available today
                   </p>
                 </div>
-                <div className="p-2 sm:p-2.5 bg-sky-500/15 rounded-xl text-sky-500 shrink-0">
-                  <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-card to-card hover:shadow-md transition-all duration-200">
-              <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-                <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Total Future Queue</p>
-                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{upcomingFutureBookings.length}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
+            <Card className="border border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-card to-card hover:shadow-sm transition-all duration-200">
+              <CardContent className="p-2.5 flex items-center gap-3">
+                <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-500 shrink-0">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground truncate">Total Future Queue</p>
+                    <p className="text-sm font-bold text-foreground leading-none">{upcomingFutureBookings.length}</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground truncate mt-0.5">
                     Upcoming queue
                   </p>
-                </div>
-                <div className="p-2 sm:p-2.5 bg-amber-500/15 rounded-xl text-amber-500 shrink-0">
-                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardContent>
             </Card>
@@ -1044,63 +1052,60 @@ export function BookingDashboard() {
                       {groupedAppts[dateStr].map(appt => {
                         const isPast = new Date(appt.end_time).getTime() < Date.now();
                         return (
-                          <Card key={appt.id} className={`border-border bg-card hover:bg-muted/10 transition-all ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
-                            <CardContent className="p-4 flex justify-between items-start gap-4 h-full min-h-[140px]">
-                              <div className="space-y-3 flex-1 flex flex-col justify-between h-full">
-                                <div>
-                                  {/* Time & Provider row */}
-                                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                    <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-0.5 rounded-md">
-                                      {appt.provider?.name}
-                                    </span>
-                                  </div>
-
-                                  {/* Customer name + chat icon */}
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-semibold text-foreground text-sm">{appt.contact?.name || "Unknown"}</h4>
-                                      {appt.conversation_id && (
-                                        <a
-                                          href={`/inbox?c=${appt.conversation_id}`}
-                                          className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
-                                          title="Open Chat in Inbox"
-                                        >
-                                          <MessageSquare className="h-3.5 w-3.5" />
-                                        </a>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">{appt.contact?.phone || "No phone"}</p>
-                                  </div>
+                          <Card key={appt.id} className={`border-border bg-card hover:bg-muted/5 transition-all duration-200 ${isPast ? 'opacity-60 grayscale-[10%]' : ''}`}>
+                            <CardContent className="p-3 flex justify-between items-center gap-3">
+                              <div className="space-y-1.5 flex-1 min-w-0">
+                                {/* Row 1: Time, Provider, Status */}
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-sm flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-semibold bg-muted/80 px-1.5 py-0.5 rounded-sm">
+                                    {appt.provider?.name}
+                                  </span>
+                                  {getSimulatedStatusBadge(appt)}
                                 </div>
 
-                                {/* Service and Notes */}
-                                <div className="space-y-1">
-                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <span className="font-medium text-foreground">{appt.service?.name}</span>
+                                {/* Row 2: Customer Name, Phone, Chat Link */}
+                                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                  <span className="font-semibold text-foreground">{appt.contact?.name || "Unknown"}</span>
+                                  {appt.conversation_id && (
+                                    <a
+                                      href={`/inbox?c=${appt.conversation_id}`}
+                                      className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
+                                      title="Open Chat in Inbox"
+                                    >
+                                      <MessageSquare className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                  {appt.contact?.phone && (
+                                    <span className="text-[10px] text-muted-foreground">({appt.contact.phone})</span>
+                                  )}
+                                </div>
+
+                                {/* Row 3: Service info & Notes */}
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <span className="font-semibold text-foreground/80">{appt.service?.name}</span>
                                     <span>•</span>
                                     <span>{appt.service?.duration_minutes} mins</span>
                                   </div>
                                   {appt.notes && (
-                                    <p className="text-[11px] text-muted-foreground italic truncate max-w-[220px]" title={appt.notes}>
+                                    <p className="text-[10px] text-muted-foreground/80 italic truncate max-w-[280px]" title={appt.notes}>
                                       "{appt.notes}"
                                     </p>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Status and Action Column */}
-                              <div className="flex flex-col items-end justify-between h-full min-h-[110px]">
-                                {getSimulatedStatusBadge(appt)}
-
+                              {/* Actions Column (on the right) */}
+                              <div className="flex items-center self-center shrink-0">
                                 {appt.status === "confirmed" && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                    className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                     onClick={() => {
                                       if (confirm("Are you sure you want to cancel this appointment?")) {
                                         cancel(appt.id);
@@ -1116,7 +1121,7 @@ export function BookingDashboard() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                                    className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                     onClick={() => {
                                       if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
                                         deleteAppointment(appt.id);
@@ -1294,80 +1299,120 @@ export function BookingDashboard() {
                           <Plus className="h-4 w-4" />
                         </Button>
                       </CardHeader>
-                      <CardContent className="p-3 flex-1 space-y-3 bg-card overflow-y-auto">
+                      <CardContent className="p-4 flex-1 bg-card overflow-y-auto">
                         {provAppts.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-muted-foreground/60 text-xs py-8 text-center">
                             <CalendarX2 className="h-6 w-6 mb-2 text-muted-foreground/30" />
                             No bookings today
                           </div>
                         ) : (
-                          provAppts.map(appt => {
-                            const isPast = new Date(appt.end_time).getTime() < Date.now();
-                            return (
-                              <Card key={appt.id} className={`border-border bg-muted/20 hover:bg-muted/40 transition-colors ${isPast ? 'opacity-50 grayscale-[10%]' : ''}`}>
-                                <div className="p-3 space-y-2">
-                                  <div className="flex justify-between items-start gap-1">
-                                    <span className="text-[9px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
-                                      {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
-                                    </span>
-                                    {getSimulatedStatusBadge(appt)}
-                                  </div>
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <div>
+                          <div className="relative border-l border-border pl-4 ml-1.5 space-y-4 py-1">
+                            {provAppts.map(appt => {
+                              const isPast = new Date(appt.end_time).getTime() < Date.now();
+                              
+                              // Determine color of status dot
+                              let dotColor = "bg-sky-500 ring-sky-500/20";
+                              let statusText = "confirmed";
+                              
+                              if (appt.status === "cancelled") {
+                                dotColor = "bg-rose-500 ring-rose-500/20";
+                                statusText = "cancelled";
+                              } else {
+                                const now = Date.now();
+                                const start = new Date(appt.start_time).getTime();
+                                const end = new Date(appt.end_time).getTime();
+                                if (end < now) {
+                                  dotColor = "bg-emerald-500 ring-emerald-500/20";
+                                  statusText = "completed";
+                                } else if (start <= now && end >= now) {
+                                  dotColor = "bg-emerald-600 ring-emerald-600/30 animate-pulse";
+                                  statusText = "in session";
+                                } else if (start - now > 0 && start - now <= 30 * 60 * 1000) {
+                                  dotColor = "bg-amber-500 ring-amber-500/20";
+                                  statusText = "arriving soon";
+                                }
+                              }
+
+                              return (
+                                <div key={appt.id} className={`relative group ${isPast ? 'opacity-60 grayscale-[10%]' : ''}`}>
+                                  {/* Timeline Node Point */}
+                                  <div className={`absolute -left-[21.5px] top-1 h-2.5 w-2.5 rounded-full border border-card ${dotColor} ring-4 transition-all duration-300 group-hover:scale-110`} />
+
+                                  <div className="flex flex-col gap-0.5">
+                                    {/* First line: Time & Status */}
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-sm">
+                                          {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                        </span>
+                                        {/* Clean mini status indicator */}
+                                        <span className="text-[9px] font-medium text-muted-foreground capitalize flex items-center gap-1">
+                                          <span className={`h-1 w-1 rounded-full ${dotColor.split(' ')[0]}`} />
+                                          {statusText}
+                                        </span>
+                                      </div>
+
+                                      {/* Inline actions (Cancel / Delete) */}
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                        {appt.status === "confirmed" && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
+                                            onClick={() => {
+                                              if (confirm("Are you sure you want to cancel this appointment?")) {
+                                                cancel(appt.id);
+                                              }
+                                            }}
+                                            title="Cancel Appointment"
+                                          >
+                                            <XCircle className="h-3 w-3" />
+                                          </Button>
+                                        )}
+
+                                        {appt.status === "cancelled" && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
+                                            onClick={() => {
+                                              if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
+                                                deleteAppointment(appt.id);
+                                              }
+                                            }}
+                                            title="Delete Appointment permanently"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Second line: Customer name and service name */}
+                                    <div className="flex items-baseline justify-between mt-0.5">
                                       <div className="flex items-center gap-1.5">
-                                        <span className="text-xs font-semibold text-foreground">{appt.contact?.name || "Unknown"}</span>
+                                        <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                                          {appt.contact?.name || "Unknown"}
+                                        </span>
                                         {appt.conversation_id && (
                                           <a
                                             href={`/inbox?c=${appt.conversation_id}`}
-                                            className="text-primary hover:text-primary/80"
+                                            className="text-primary hover:text-primary/80 transition-colors"
                                           >
                                             <MessageSquare className="h-3 w-3" />
                                           </a>
                                         )}
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground">{appt.service?.name} ({appt.service?.duration_minutes}m)</p>
-                                    </div>
-
-                                    {/* Inline actions to save height */}
-                                    <div className="flex items-center gap-1">
-                                      {appt.status === "confirmed" && (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
-                                          onClick={() => {
-                                            if (confirm("Are you sure you want to cancel this appointment?")) {
-                                              cancel(appt.id);
-                                            }
-                                          }}
-                                          title="Cancel Appointment"
-                                        >
-                                          <XCircle className="h-3.5 w-3.5" />
-                                        </Button>
-                                      )}
-
-                                      {appt.status === "cancelled" && (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-md"
-                                          onClick={() => {
-                                            if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                              deleteAppointment(appt.id);
-                                            }
-                                          }}
-                                          title="Delete Appointment permanently"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      )}
+                                      <span className="text-[10px] text-muted-foreground font-medium">
+                                        {appt.service?.name} ({appt.service?.duration_minutes}m)
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
-                              </Card>
-                            );
-                          }))
-                        }
+                              );
+                            })}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );

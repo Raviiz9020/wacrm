@@ -3,6 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Car,
+  Wrench,
+  Stethoscope,
+  Home,
+  Scissors,
   Plus,
   ChevronRight,
   ChevronDown,
@@ -29,6 +33,34 @@ import {
   type SchemaField,
 } from '../services/industryPresetService';
 import type { CustomerAsset, CustomerAssetHistory, AssetType } from '@/types';
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  car_detailing: Car,
+  garage: Wrench,
+  dental_clinic: Stethoscope,
+  real_estate: Home,
+  salon_spa: Scissors,
+};
+
+function getAssetIcon(presetKey?: string, assetTypeName?: string) {
+  if (presetKey && ICON_MAP[presetKey]) {
+    return ICON_MAP[presetKey];
+  }
+  const name = (assetTypeName || '').toLowerCase();
+  if (name.includes('patient') || name.includes('medical') || name.includes('clinic') || name.includes('health')) {
+    return Stethoscope;
+  }
+  if (name.includes('property') || name.includes('home') || name.includes('house') || name.includes('real estate')) {
+    return Home;
+  }
+  if (name.includes('client') || name.includes('salon') || name.includes('spa') || name.includes('hair') || name.includes('beauty')) {
+    return Scissors;
+  }
+  if (name.includes('garage') || name.includes('repair') || name.includes('wrench')) {
+    return Wrench;
+  }
+  return Car;
+}
 
 interface CustomerAssetDrawerProps {
   contactId: string;
@@ -127,7 +159,7 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
       await loadData();
     } catch (err) {
       console.error('Failed to delete asset:', err);
-      alert('Failed to delete vehicle asset. Please try again.');
+      alert(`Failed to delete ${assetTypeName.toLowerCase()} asset. Please try again.`);
     }
   };
 
@@ -243,6 +275,8 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
   ];
 
   const assetTypeName = activeAssetType?.name || 'Customer Asset';
+  const presetKey = (activeAssetType?.schema_definition as any)?.preset_key;
+  const AssetIcon = getAssetIcon(presetKey, activeAssetType?.name);
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -253,7 +287,7 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
           onClick={handleToggleDrawer}
           className="flex items-center gap-2 text-foreground hover:text-primary transition-colors flex-1 text-left min-w-0"
         >
-          <Car className="w-3.5 h-3.5 text-primary shrink-0" />
+          <AssetIcon className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="truncate">{assetTypeName}s ({assets.length})</span>
         </button>
         <div className="flex items-center gap-2 shrink-0">

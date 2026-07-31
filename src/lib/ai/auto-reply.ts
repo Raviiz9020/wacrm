@@ -155,6 +155,7 @@ export async function dispatchInboundToAiReply(
         }
 
         await db.from('contact_notes').insert({
+          account_id: accountId,
           contact_id: contactId,
           user_id: targetAgentId || configOwnerUserId,
           note_text: noteText,
