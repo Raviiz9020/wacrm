@@ -12,6 +12,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { generateStructuredHandoffBriefing } from './handoff-summarizer'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
 import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
+import { fetchPortfolioMediaContext } from '@/modules/booking/services/portfolioService'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -248,15 +249,19 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    // Ground the reply in the account's knowledge base, customer assets, and matrix pricing concurrently.
-    const [knowledge, assetContext, matrixPricingContext] = await Promise.all([
+    // Ground the reply in the account's knowledge base, customer assets, matrix pricing, and portfolio showcase concurrently.
+    const [knowledge, assetContext, matrixPricingContext, portfolioContext] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)).catch(() => [] as string[]),
       contactId ? fetchCustomerAssetContext(db, accountId, contactId).catch(() => '') : Promise.resolve(''),
       fetchServiceMatrixPricingContext(db, accountId).catch(() => ''),
+      fetchPortfolioMediaContext(db, accountId).catch(() => ''),
     ])
 
     if (matrixPricingContext) {
       knowledge.unshift(matrixPricingContext)
+    }
+    if (portfolioContext) {
+      knowledge.unshift(portfolioContext)
     }
     if (assetContext) {
       knowledge.push(assetContext)

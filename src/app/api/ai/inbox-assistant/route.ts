@@ -12,6 +12,7 @@ import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
 import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
+import { fetchPortfolioMediaContext } from '@/modules/booking/services/portfolioService'
 
 /**
  * POST /api/ai/inbox-assistant  (agent+)
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const [knowledge, assetContext, chatMessages, matrixPricingContext] = await Promise.all([
+    const [knowledge, assetContext, chatMessages, matrixPricingContext, portfolioContext] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestQuery).catch(() => [] as string[]),
       contactId
         ? fetchCustomerAssetContext(supabase, accountId, contactId).catch(() => '')
@@ -111,10 +112,14 @@ export async function POST(request: Request) {
         ? buildConversationContext(supabase, conversationId).catch(() => [])
         : Promise.resolve([]),
       fetchServiceMatrixPricingContext(supabase, accountId).catch(() => ''),
+      fetchPortfolioMediaContext(supabase, accountId).catch(() => ''),
     ])
 
     if (matrixPricingContext) {
       knowledge.unshift(matrixPricingContext)
+    }
+    if (portfolioContext) {
+      knowledge.unshift(portfolioContext)
     }
     if (assetContext) {
       knowledge.push(assetContext)

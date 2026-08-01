@@ -8,6 +8,7 @@ import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
 import { AiError, type ChatMessage } from '@/lib/ai/types'
 import { fetchServiceMatrixPricingContext } from '@/modules/booking/services/matrixPricingService'
+import { fetchPortfolioMediaContext } from '@/modules/booking/services/portfolioService'
 
 // Keep the tested transcript bounded, mirroring the live context window.
 const MAX_TURNS = 20
@@ -73,14 +74,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Ground in knowledge base and matrix pricing concurrently.
-    const [knowledge, matrixPricingContext] = await Promise.all([
+    // Ground in knowledge base, matrix pricing, and portfolio showcase concurrently.
+    const [knowledge, matrixPricingContext, portfolioContext] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)).catch(() => [] as string[]),
       fetchServiceMatrixPricingContext(supabase, accountId).catch(() => ''),
+      fetchPortfolioMediaContext(supabase, accountId).catch(() => ''),
     ])
 
     if (matrixPricingContext) {
       knowledge.unshift(matrixPricingContext)
+    }
+    if (portfolioContext) {
+      knowledge.unshift(portfolioContext)
     }
 
     const systemPrompt = buildSystemPrompt({
