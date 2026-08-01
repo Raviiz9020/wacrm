@@ -7,7 +7,7 @@ import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import { engineSendText } from '@/lib/flows/meta-send'
+import { engineSendText, engineSendMedia } from '@/lib/flows/meta-send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { generateStructuredHandoffBriefing } from './handoff-summarizer'
 import { fetchCustomerAssetContext } from '@/modules/booking/services/customerAssetService'
@@ -316,14 +316,66 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    await engineSendText({
-      accountId,
-      userId: configOwnerUserId,
-      conversationId,
-      contactId,
-      text,
-      aiGenerated: true,
-    })
+    // Parse response for portfolio media URLs
+    const mediaUrlRegex = /(https?:\/\/[^\s]+?\/portfolio-media\/[^\s\n\r)]+)/gi
+    const matches = [...text.matchAll(mediaUrlRegex)].map((m) => m[0])
+
+    if (matches.length > 0) {
+      const uniqueMediaUrls = Array.from(new Set(matches))
+      let cleanedText = text
+      for (const url of uniqueMediaUrls) {
+        cleanedText = cleanedText.replace(url, '')
+      }
+      cleanedText = cleanedText.replace(/[\s\n\r.,:-]+$/, '').trim() // Clean trailing whitespace/punctuation
+
+      if (cleanedText) {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          text: cleanedText,
+          aiGenerated: true,
+        })
+      }
+
+      for (const url of uniqueMediaUrls) {
+        let caption = 'Showcase Portfolio'
+        try {
+          const { data: mediaRow } = await db
+            .from('portfolio_media')
+            .select('title')
+            .eq('media_url', url)
+            .maybeSingle()
+          if (mediaRow?.title) {
+            caption = mediaRow.title
+          }
+        } catch (err) {
+          console.error('[ai auto-reply] Failed to resolve portfolio title:', err)
+        }
+
+        const isVideo = !!url.toLowerCase().match(/\.(mp4|avi|mov|mkv)(\?|$)/)
+
+        await engineSendMedia({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          kind: isVideo ? 'video' : 'image',
+          link: url,
+          caption,
+        })
+      }
+    } else {
+      await engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId,
+        contactId,
+        text,
+        aiGenerated: true,
+      })
+    }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
   }
