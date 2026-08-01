@@ -1,17 +1,13 @@
-# Graph Report - .  (2026-07-30)
+# Graph Report - .  (2026-08-01)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 15 files · ~319,713 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2238 nodes · 5879 edges · 167 communities (106 shown, 61 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 32 edges (avg confidence: 0.68)
+- 2241 nodes · 5685 edges · 154 communities (89 shown, 65 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 33 edges (avg confidence: 0.68)
 - Token cost: 0 input · 0 output
-
-## Graph Freshness
-- Built from commit: `26f669c2`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - flow-canvas.tsx
@@ -113,11 +109,13 @@
 - lib
 - login/page.tsx
 - members.ts
+- generate.test.ts
 - account.test.ts
 - template-status.ts
 - webhook-signature.test.ts
 - AI Knowledge Chunks Table
 - (auth)/layout.tsx
+- signup/page.tsx
 - icon.tsx
 - join/layout.tsx
 - SecurityPanel
@@ -130,6 +128,7 @@
 - tags table
 - @dnd-kit/core
 - eslint.config.mjs
+- Community 118
 - next-intl
 - opus-recorder
 - recharts
@@ -137,6 +136,7 @@
 - tw-animate-css
 - @xyflow/react
 - postcss.config.mjs
+- app/page.tsx
 - ForbiddenError
 - UnauthorizedError
 - Booking Module Schema
@@ -148,7 +148,6 @@
 - Dependabot Config
 - Bug Report Template
 - Issue Config
-- Feature Request Template
 - Pull Request Template
 - Security Policy
 - GitHub CI Workflow
@@ -162,32 +161,19 @@
 - Vercel SVG Icon
 - Window SVG Icon
 - SettingsRail
-- Initial Schema Migration
-- WhatsApp Config Table
-- Message Templates Table
-- Flow Media Storage Bucket
-- merge_duplicate_contacts
-- Chat Media Storage Bucket
-- API Keys Table
-- Notifications Table
-- Webhook Endpoints Table
-- claim_ai_reply_slot
-- Quick Replies Table
-- merge_duplicate_conversations
-- Migration: AI OpenRouter
-- Migration: Fix AI Usage Log Provider Check
+- request.ts
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 180 edges
-2. `createClient()` - 79 edges
-3. `toErrorResponse()` - 64 edges
-4. `useAuth()` - 61 edges
-5. `requireRole()` - 59 edges
-6. `createClient()` - 52 edges
-7. `Button()` - 46 edges
-8. `checkRateLimit()` - 43 edges
-9. `requireApiKey()` - 39 edges
-10. `rateLimitResponse()` - 39 edges
+2. `types/index.ts` - 145 edges
+3. `createClient()` - 77 edges
+4. `useAuth()` - 60 edges
+5. `toErrorResponse()` - 60 edges
+6. `requireRole()` - 55 edges
+7. `createClient()` - 52 edges
+8. `contacts/page.tsx` - 50 edges
+9. `Button()` - 45 edges
+10. `supabase/client.ts` - 43 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `wacrm README` --references--> `Hostinger Deploy Screenshot`  [EXTRACTED]
@@ -203,10 +189,10 @@
 
 ## Import Cycles
 - 3-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
-- 4-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-components.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
 - 4-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-send-builder.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
-- 5-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-components.ts -> src/lib/whatsapp/template-validators.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
+- 4-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-components.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
 - 5-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-send-builder.ts -> src/lib/whatsapp/template-validators.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
+- 5-file cycle: `src/lib/whatsapp/interactive.ts -> src/lib/whatsapp/meta-api.ts -> src/lib/whatsapp/template-components.ts -> src/lib/whatsapp/template-validators.ts -> src/types/index.ts -> src/lib/whatsapp/interactive.ts`
 
 ## Hyperedges (group relationships)
 - **AI Provider Integration Pattern** — src_lib_ai_types_aiprovider, src_lib_ai_defaults_ai_provider_default_model, src_lib_ai_providers_gemini, src_lib_ai_generate_generatereply, src_components_settings_ai_config [EXTRACTED]
@@ -225,431 +211,375 @@
 - **AI Reply Assistant & Knowledge Base** — supabase_migrations_029_ai_reply_ai_configs, supabase_migrations_030_ai_knowledge_ai_knowledge_documents, supabase_migrations_030_ai_knowledge_ai_knowledge_chunks, supabase_migrations_033_ai_reply_polish_ai_usage_log [EXTRACTED 1.00]
 - **Conversational Flows Engine** — supabase_migrations_010_flows_flows, supabase_migrations_010_flows_flow_nodes, supabase_migrations_010_flows_flow_runs, supabase_migrations_010_flows_flow_run_events, supabase_migrations_016_flow_media_flow_media_bucket [EXTRACTED 1.00]
 
-## Communities (167 total, 61 thin omitted)
+## Communities (154 total, 65 thin omitted)
 
 ### Community 0 - "flow-canvas.tsx"
 Cohesion: 0.05
-Nodes (69): FlowBuilder(), NodeConfigWithAdvanced(), ADD_NODE_TYPES, CanvasAddNodeButton(), FlowCanvas(), FlowCanvasInner(), FlowNodeCard(), NODE_TYPES (+61 more)
+Nodes (76): activate/route.ts, POST(), flows/[id]/page.tsx, FlowBuilder(), NodeCard(), NodeConfigWithAdvanced(), ADD_NODE_TYPES, CanvasAddNodeButton() (+68 more)
 
 ### Community 1 - "contacts/page.tsx"
-Cohesion: 0.08
-Nodes (45): TEMPLATE_ICON, TEMPLATE_ORDER, ContactWithTags, describeTrigger(), FlowCard(), FlowRow, STATUS_COLORS, STATUS_LABELS() (+37 more)
+Cohesion: 0.05
+Nodes (63): usage/route.ts, GET(), UsageRow, dashboard/page.tsx, DashboardPage(), deltaLabel(), RangeDays, ActivityFeed() (+55 more)
 
 ### Community 2 - "cn"
-Cohesion: 0.06
-Nodes (43): PreviewCell(), Skeleton(), SkeletonCard(), AddNodeButton(), NodeCard(), NodeKeySelect(), NodeIconChip(), IssueLine() (+35 more)
+Cohesion: 0.05
+Nodes (55): PreviewCell(), Skeleton(), SkeletonCard(), AddNodeButton(), NodeKeySelect(), IssueLine(), ConversationItem(), ConversationItemProps (+47 more)
 
 ### Community 3 - "automation-builder.tsx"
-Cohesion: 0.05
-Nodes (45): ADDABLE_STEPS, AgentSelect(), ApiStep, asInteractive(), AutomationBuilder(), AutomationResources, blankConfig(), BuilderInitial (+37 more)
+Cohesion: 0.09
+Nodes (53): automations/page.tsx, TEMPLATE_ICON, TEMPLATE_ORDER, contacts/page.tsx, flows/page.tsx, describeTrigger(), FlowCard(), FlowRow (+45 more)
 
 ### Community 4 - "toErrorResponse"
-Cohesion: 0.12
-Nodes (44): RFC-6585, DELETE(), GET(), POST(), IMPORTANT: the plaintext key is returned exactly ONCE, in the POST, DELETE(), GET(), GET() (+36 more)
+Cohesion: 0.07
+Nodes (54): POST(), POST(), POST(), ContactOutcome, ContactRow, findOrCreateContact(), findOrCreateConversation(), flagBroadcastReplyIfAny() (+46 more)
 
 ### Community 5 - "createClient"
-Cohesion: 0.06
-Nodes (45): ForgotPasswordPage(), NewBroadcastPage(), steps, ContactsPage(), DashboardShell(), DashboardShellInner(), metadata, NotificationsPage() (+37 more)
+Cohesion: 0.05
+Nodes (52): edit/page.tsx, automations/new/page.tsx, expandFromSeeds(), NewAutomationPage(), SeedRow, uid(), ADDABLE_STEPS, AgentSelect() (+44 more)
 
 ### Community 6 - "auto-reply.ts"
 Cohesion: 0.07
-Nodes (33): Adding a New AI Provider, POST /api/ai/config, POST(), POST(), POST(), POST /api/ai/test, AiConfig Component, supabaseAdmin() (+25 more)
+Nodes (47): RFC-4180, AutomationsPage(), broadcasts/[id]/page.tsx, BroadcastDetailPage(), FunnelStep, RECIPIENT_STATUSES, StatCardProps, broadcasts/page.tsx (+39 more)
 
 ### Community 7 - "button.tsx"
 Cohesion: 0.11
-Nodes (34): Query: Multi-tenant architecture and RLS, FAIL_COPY, JoinPage(), PeekFail, PeekOk, PeekResult, ROLE_LABEL, categoryColors (+26 more)
+Nodes (50): broadcast/route.ts, BroadcastResult, POST(), findOrCreateContact(), automations/meta-send.ts, engineSendInteractive(), engineSendTemplate(), engineSendText() (+42 more)
 
 ### Community 8 - "encoderWorker.min.js"
-Cohesion: 0.06
-Nodes (23): abort(), abortOnCannotGrowMemory(), addOnPostRun(), addOnPreRun(), addRunDependency(), assert(), callRuntimeCallbacks(), createWasm() (+15 more)
+Cohesion: 0.07
+Nodes (48): ForgotPasswordPage(), broadcasts/new/page.tsx, NewBroadcastPage(), steps, ContactsPage(), notifications/page.tsx, NotificationsPage(), TYPE_ICON (+40 more)
 
 ### Community 9 - "broadcasts/[id]/page.tsx"
-Cohesion: 0.08
-Nodes (38): RFC-4180, AutomationsPage(), BroadcastDetailPage(), FunnelStep, RECIPIENT_STATUSES, StatCardProps, BroadcastsPage(), percent() (+30 more)
+Cohesion: 0.07
+Nodes (39): ContactDetailView(), ContactDetailViewProps, collectVariableSlots(), renderBodyPreview(), TemplatePicker(), TemplateSendValues, DealCard(), DealCardProps (+31 more)
 
 ### Community 10 - "types/index.ts"
 Cohesion: 0.06
-Nodes (44): GET(), DraftState, useUnreadNotifications(), appendResults(), AutomationContext, evaluateCondition(), ExecuteArgs, executeStepsFrom() (+36 more)
+Nodes (23): abort(), abortOnCannotGrowMemory(), addOnPostRun(), addOnPreRun(), addRunDependency(), assert(), callRuntimeCallbacks(), createWasm() (+15 more)
 
 ### Community 11 - "flows/engine.ts"
-Cohesion: 0.11
-Nodes (44): ContactOutcome, ContactRow, findOrCreateContact(), findOrCreateConversation(), flagBroadcastReplyIfAny(), GET(), handleReaction(), handleStatusUpdate() (+36 more)
+Cohesion: 0.10
+Nodes (39): RFC-6585, api-keys/[id]/route.ts, DELETE(), invitations/[id]/route.ts, DELETE(), [userId]/route.ts, DELETE(), PATCH() (+31 more)
 
 ### Community 12 - "template-manager.tsx"
-Cohesion: 0.07
-Nodes (38): UsageResponse, WINDOWS, contactFields, isMediaHeaderType(), isValidHttpUrl(), MEDIA_HEADER_TYPES, MediaHeaderType, SAMPLE_CONTACT (+30 more)
+Cohesion: 0.05
+Nodes (41): NewRecipient, [mediaId]/route.ts, GET(), SendInteractiveButtonsEngineArgs, SendInteractiveListEngineArgs, DeleteMessageTemplateArgs, downloadMedia(), DownloadMediaArgs (+33 more)
 
 ### Community 13 - "flows/types.ts"
 Cohesion: 0.07
-Nodes (37): GET(), GET(), decideFallback(), FallbackAction, resolveFallbackPolicy(), POLICY_REPROMPT_2_HANDOFF, FAQ_BOT, FlowTemplate (+29 more)
+Nodes (41): flows/cron/route.ts, GET(), templates/route.ts, GET(), decideFallback(), FallbackAction, resolveFallbackPolicy(), POLICY_REPROMPT_2_HANDOFF (+33 more)
 
 ### Community 14 - "meta-api.ts"
-Cohesion: 0.06
-Nodes (38): NewRecipient, GET(), SendMediaEngineArgs, DeleteMessageTemplateArgs, downloadMedia(), DownloadMediaArgs, EditMessageTemplateArgs, EditMessageTemplateResult (+30 more)
+Cohesion: 0.05
+Nodes (38): DraftState, useUnreadNotifications(), templateStatusConfig, TemplateStatusDisplay, types/index.ts, Account, AccountInvitation, AssignConversationStepConfig (+30 more)
 
 ### Community 15 - "customerAssetService.ts"
-Cohesion: 0.11
-Nodes (33): ICON_MAP, IndustryConfig(), IndustryConfigProps, CreateAssetInput, createOrUpdateCustomerAsset(), deleteAssetServiceHistory(), deleteCustomerAsset(), getAssetServiceHistory() (+25 more)
+Cohesion: 0.14
+Nodes (21): src/client.ts, Paginated, WacrmApiError, WacrmClient, src/config.ts, Config, loadConfig(), truthy() (+13 more)
 
 ### Community 16 - "BookingDashboard.tsx"
-Cohesion: 0.09
-Nodes (27): ContactDetailViewProps, collectVariableSlots(), renderBodyPreview(), TemplatePicker(), TemplateSendValues, UrlButtonSlot, Badge(), badgeVariants (+19 more)
+Cohesion: 0.08
+Nodes (32): SettingsPage(), RequireRole(), PRESENCE_DOT_CLASS, PresenceDot(), InviteMemberDialog(), EDITABLE_ROLES, fmtDate(), fmtExpiresIn() (+24 more)
 
 ### Community 17 - "members-tab.tsx"
-Cohesion: 0.09
-Nodes (32): SettingsPage(), PRESENCE_DOT_CLASS, PresenceDot(), EDITABLE_ROLES, fmtDate(), fmtExpiresIn(), Invitation, MembersTab() (+24 more)
+Cohesion: 0.11
+Nodes (27): templates/[id]/route.ts, DELETE(), EDITABLE_STATUSES, isDryRun(), PATCH(), submit/route.ts, buildUpsertRow(), POST() (+19 more)
 
 ### Community 18 - "WacrmClient"
-Cohesion: 0.14
-Nodes (16): Paginated, WacrmApiError, WacrmClient, Config, loadConfig(), truthy(), main(), registerBroadcastTools() (+8 more)
+Cohesion: 0.16
+Nodes (21): Query: Multi-tenant architecture and RLS, forgot-password/page.tsx, AiUsageCard(), UsageResponse, WINDOWS, DocSummary, EditTarget, SettingsPanelHead() (+13 more)
 
 ### Community 19 - "decrypt"
-Cohesion: 0.16
-Nodes (27): BroadcastResult, POST(), sendViaMeta(), engineSendMedia(), engineSendText(), SendInput, SendInteractiveButtonsEngineArgs, SendInteractiveListEngineArgs (+19 more)
+Cohesion: 0.10
+Nodes (25): ApiContact, ContactInput, RawTagJoin, dedupeByPhone(), ExistingContact, findExistingContact(), isExactMatch(), isUniqueViolation() (+17 more)
 
 ### Community 20 - "supabaseAdmin"
-Cohesion: 0.14
-Nodes (26): DELETE(), GET(), PATCH(), requireUser(), GET(), POST(), DELETE(), PATCH() (+18 more)
+Cohesion: 0.10
+Nodes (23): RFC-1918, blankButtonsPayload(), blankListPayload(), ButtonsEditor(), InteractiveBuilder(), InteractiveBuilderProps, ListEditor(), nextId() (+15 more)
 
 ### Community 21 - "requireApiKey"
-Cohesion: 0.12
-Nodes (22): GET(), generateApiKey(), GeneratedApiKey, hashApiKey(), looksLikeApiKey(), timingSafeHexEqual(), ApiKeyRow, findActiveKeyByHash() (+14 more)
+Cohesion: 0.15
+Nodes (29): api-keys/route.ts, GET(), POST(), IMPORTANT: the plaintext key is returned exactly ONCE, in the POST, GET(), members/route.ts, GET(), ProfileRow (+21 more)
 
 ### Community 22 - "use-theme.tsx"
-Cohesion: 0.13
-Nodes (24): inter, metadata, viewport, ModeToggle(), AppearancePanel(), ModeCard(), ThemeCard(), noopSubscribe() (+16 more)
+Cohesion: 0.15
+Nodes (30): duplicate/route.ts, POST(), automations/[id]/route.ts, DELETE(), GET(), PATCH(), requireUser(), automations/route.ts (+22 more)
 
 ### Community 23 - "contacts.ts"
-Cohesion: 0.14
-Nodes (20): ApiContact, ContactError, ContactInput, findOrCreateContact(), RawTagJoin, dedupeByPhone(), ExistingContact, findExistingContact() (+12 more)
+Cohesion: 0.11
+Nodes (22): me/route.ts, GET(), generateApiKey(), GeneratedApiKey, hashApiKey(), looksLikeApiKey(), timingSafeHexEqual(), ApiKeyRow (+14 more)
 
 ### Community 24 - "createClient"
-Cohesion: 0.15
-Nodes (18): POST(), POST(), DELETE(), GET(), PUT(), PutBody, requireOwnership(), GET() (+10 more)
+Cohesion: 0.13
+Nodes (25): app/layout.tsx, inter, metadata, viewport, ModeToggle(), AppearancePanel(), ModeCard(), ThemeCard() (+17 more)
 
 ### Community 25 - "Conversation"
-Cohesion: 0.14
-Nodes (19): GET(), ConversationList(), MessageThreadProps, RealtimeEvent, useRealtime(), UseRealtimeOptions, ApiConversation, ApiMessage (+11 more)
+Cohesion: 0.12
+Nodes (23): automations/cron/route.ts, GET(), sleep(), appendResults(), AutomationContext, DispatchInput, evaluateCondition(), ExecuteArgs (+15 more)
 
 ### Community 26 - "dependencies"
+Cohesion: 0.15
+Nodes (25): TemplateFormData, makeDb(), buildBodyComponent(), buildButtonComponent(), buildHeaderComponent(), buildSendComponents(), buttonNeedsSendParam(), MetaSendComponent (+17 more)
+
+### Community 27 - "bar-chart.tsx"
+Cohesion: 0.23
+Nodes (27): NodeConfigForm, flows/engine.ts, AdminClient, advanceCurrentNodeKey(), advanceFromNodeKey(), dispatchInboundToFlows(), endRun(), evaluateConditionNode() (+19 more)
+
+### Community 28 - "components.json"
+Cohesion: 0.27
+Nodes (24): broadcasts/[id]/route.ts, GET(), broadcasts/route.ts, POST(), contacts/[id]/route.ts, GET(), PATCH(), contacts/route.ts (+16 more)
+
+### Community 29 - "message-thread.tsx"
+Cohesion: 0.12
+Nodes (21): sync/route.ts, extractSampleValues(), MetaButton, MetaTemplate, MetaTemplateComponent, normalizeCategory(), normalizeQualityScore(), parseButtons() (+13 more)
+
+### Community 30 - "send-message.ts"
 Cohesion: 0.08
 Nodes (25): clsx, @dagrejs/dagre, date-fns, @dnd-kit/sortable, @dnd-kit/utilities, lucide-react, next, dependencies (+17 more)
 
-### Community 27 - "bar-chart.tsx"
+### Community 31 - "deliver.ts"
+Cohesion: 0.14
+Nodes (20): booking/send-slots/route.ts, booking/slots/route.ts, api/send-slots/route.ts, POST(), api/slots/route.ts, GET(), Appointment, Provider (+12 more)
+
+### Community 32 - "invitations/route.ts"
+Cohesion: 0.16
+Nodes (18): config/route.ts, DELETE(), GET(), POST(), resolveAccountId(), supabaseAdmin(), verify-registration/route.ts, GET() (+10 more)
+
+### Community 33 - "supabaseAdmin"
 Cohesion: 0.11
 Nodes (21): BarChartEventProps, BarChartProps, BaseEventProps, ChartTooltip(), ChartTooltipProps, deepEqual(), HasScrollProps, Legend (+13 more)
 
-### Community 28 - "components.json"
+### Community 34 - "currency.ts"
+Cohesion: 0.13
+Nodes (19): inbox/page.tsx, ContactSidebar(), ComposerMediaKind, formatDuration(), MediaDraft, MessageComposer(), MessageComposerProps, PICKER_ACCEPT (+11 more)
+
+### Community 35 - "mcp-server/package.json"
+Cohesion: 0.23
+Nodes (17): EmbeddingResponse, embedTexts(), toVectorLiteral(), retrieveKnowledge(), AnthropicResponse, generateAnthropic(), normalizeForAnthropic(), generateOpenAi() (+9 more)
+
+### Community 36 - "devDependencies"
 Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
-### Community 29 - "message-thread.tsx"
-Cohesion: 0.13
-Nodes (17): ContactSidebar(), ComposerMediaKind, formatDuration(), MediaDraft, MessageComposer(), MessageComposerProps, PICKER_ACCEPT, ReplyDraft (+9 more)
+### Community 37 - "contacts/route.ts"
+Cohesion: 0.23
+Nodes (19): [id]/messages/route.ts, GET(), conversations/route.ts, GET(), v1/conversations.ts, ApiConversation, ApiMessage, serializeConversation() (+11 more)
 
-### Community 30 - "send-message.ts"
-Cohesion: 0.16
-Nodes (15): encrypt(), isLegacyFormat(), InteractiveMessagePayload, ContactRow, from(), Script, MEDIA_KINDS, SendMessageError (+7 more)
-
-### Community 31 - "deliver.ts"
-Cohesion: 0.16
-Nodes (14): RFC-1918, deliverOne(), dispatchWebhookEvent(), EndpointRow, recordFailure(), Calls, makeDb(), Row (+6 more)
-
-### Community 32 - "invitations/route.ts"
+### Community 38 - "message-bubble.tsx"
 Cohesion: 0.21
-Nodes (16): getBaseUrl(), isHostAllowed(), parseAllowedHosts(), POST(), IMPORTANT: the plaintext token is returned exactly ONCE — in, GET(), getClientIp(), getClientIp() (+8 more)
+Nodes (19): invitations/route.ts, getBaseUrl(), isHostAllowed(), parseAllowedHosts(), POST(), IMPORTANT: the plaintext token is returned exactly ONCE — in, peek/route.ts, GET() (+11 more)
 
-### Community 33 - "supabaseAdmin"
-Cohesion: 0.20
-Nodes (13): supabaseAdmin(), POST(), GET(), addMinutesToTime(), BookingInput, createAppointment(), rescheduleAppointment(), toUTCISOString() (+5 more)
+### Community 39 - "interactive.ts"
+Cohesion: 0.13
+Nodes (13): Adding a New AI Provider, POST /api/ai/config, POST /api/ai/test, AiConfig Component, AI_PROVIDER_DEFAULT_MODEL, generateReply, Gemini Provider Adapter, AiProvider Type (+5 more)
 
-### Community 34 - "currency.ts"
-Cohesion: 0.19
-Nodes (16): AiUsageCard(), DealCard(), DealCardProps, formatDate(), initials(), DealFormProps, PipelineAnalyticsProps, PipelineBoard() (+8 more)
-
-### Community 35 - "mcp-server/package.json"
+### Community 40 - "toApiErrorResponse"
 Cohesion: 0.10
-Nodes (19): author, bin, wacrm-mcp, description, engines, node, files, homepage (+11 more)
+Nodes (20): mcp-server/package.json, author, bin, wacrm-mcp, description, engines, node, files (+12 more)
 
-### Community 36 - "devDependencies"
+### Community 41 - "webhooks/route.ts"
+Cohesion: 0.20
+Nodes (19): flows/[id]/route.ts, DELETE(), GET(), PUT(), PutBody, requireOwnership(), runs/route.ts, GET() (+11 more)
+
+### Community 42 - "MessageTemplate"
+Cohesion: 0.13
+Nodes (17): ContactWithTags, contactFields, isMediaHeaderType(), isValidHttpUrl(), MEDIA_HEADER_TYPES, MediaHeaderType, SAMPLE_CONTACT, Step3Personalize() (+9 more)
+
+### Community 43 - "throwMetaError"
 Cohesion: 0.11
 Nodes (19): eslint, eslint-config-next, devDependencies, eslint, eslint-config-next, prettier, prettier-plugin-tailwindcss, tailwindcss (+11 more)
 
-### Community 37 - "contacts/route.ts"
-Cohesion: 0.29
-Nodes (13): GET(), sanitizeSearch(), GET(), GET(), serializeContact(), buildPage(), Cursor, decodeCursor() (+5 more)
-
-### Community 38 - "message-bubble.tsx"
+### Community 44 - "queries.ts"
 Cohesion: 0.16
 Nodes (10): MessageBubble(), MessageBubbleProps, groupReactions(), MessageReactions(), MessageReactionsProps, ReactionGroup, ReplyQuote(), ReplyQuoteProps (+2 more)
 
-### Community 39 - "interactive.ts"
-Cohesion: 0.18
-Nodes (16): QuickReplyPicker(), QuickReplyPickerProps, fail(), InteractiveButton, InteractiveButtonsPayload, InteractiveListPayload, InteractiveListRow, InteractiveListSection (+8 more)
-
-### Community 40 - "toApiErrorResponse"
-Cohesion: 0.35
-Nodes (14): GET(), POST(), GET(), PATCH(), POST(), POST(), DELETE(), GET() (+6 more)
-
-### Community 41 - "webhooks/route.ts"
-Cohesion: 0.27
-Nodes (12): PATCH(), GET(), POST(), ApiWebhookEndpoint, generateWebhookSecret(), normalizeWebhookUrl(), serializeWebhookEndpoint(), isWebhookEvent() (+4 more)
-
-### Community 42 - "MessageTemplate"
-Cohesion: 0.12
-Nodes (15): Step1Props, Step3Props, Step4Props, TemplatePickerProps, TemplateFormData, AudienceConfig, BroadcastApiResult, BroadcastPayload (+7 more)
-
-### Community 43 - "throwMetaError"
-Cohesion: 0.22
-Nodes (12): DELETE(), GET(), POST(), resolveAccountId(), supabaseAdmin(), GET(), getSubscribedApps(), registerPhoneNumber() (+4 more)
-
-### Community 44 - "queries.ts"
-Cohesion: 0.36
-Nodes (12): GET(), UsageRow, daysAgoStart(), DOW_SHORT_MON_FIRST, lastNDayKeys(), localDayKey(), mondayIndex(), startOfLocalDay() (+4 more)
-
 ### Community 45 - "automations/new/page.tsx"
-Cohesion: 0.22
-Nodes (14): expandFromSeeds(), NewAutomationPage(), SeedRow, uid(), BuilderStep, DispatchInput, AUTOMATION_TEMPLATES, AutomationTemplateDefinition (+6 more)
+Cohesion: 0.17
+Nodes (16): conversations/[id]/route.ts, GET(), ConversationList(), RealtimeEvent, useRealtime(), UseRealtimeOptions, inbox/conversations.ts, ContactFilters (+8 more)
 
 ### Community 46 - "knowledge.ts"
-Cohesion: 0.21
-Nodes (9): chunkText(), EmbeddingResponse, embedTexts(), toVectorLiteral(), ingestDocument(), MatchRow, retrieveKnowledge(), FakeState (+1 more)
+Cohesion: 0.27
+Nodes (14): webhooks/[id]/route.ts, PATCH(), webhooks/route.ts, GET(), POST(), ApiWebhookEndpoint, generateWebhookSecret(), normalizeWebhookUrl() (+6 more)
 
 ### Community 47 - "anthropic.ts"
-Cohesion: 0.36
-Nodes (12): AnthropicResponse, generateAnthropic(), normalizeForAnthropic(), generateOpenAi(), OpenAiResponse, generateOpenRouter(), OpenRouterResponse, mergeConsecutive() (+4 more)
+Cohesion: 0.14
+Nodes (15): DashboardShell(), DashboardShellInner(), (dashboard)/layout.tsx, metadata, layout/header.tsx, getPageTitleKey(), Header(), HeaderProps (+7 more)
 
 ### Community 48 - "compilerOptions"
+Cohesion: 0.16
+Nodes (15): QuickReplyPicker(), QuickReplyPickerProps, fail(), InteractiveButton, InteractiveButtonsPayload, InteractiveListPayload, InteractiveListRow, InteractiveListSection (+7 more)
+
+### Community 49 - "package.json"
+Cohesion: 0.16
+Nodes (13): CATEGORIES, categoryColors, COMMON_LANGUAGE_CODES, emptyForm, HEADER_FORMATS, HeaderFormat, Badge(), badgeVariants (+5 more)
+
+### Community 50 - "activity-feed.tsx"
+Cohesion: 0.12
+Nodes (14): Step1Props, Step3Props, Step4Props, TemplatePickerProps, AudienceConfig, BroadcastApiResult, BroadcastPayload, CustomFieldFilter (+6 more)
+
+### Community 51 - "template-components.ts"
 Cohesion: 0.13
 Nodes (15): compilerOptions, declaration, esModuleInterop, forceConsistentCasingInFileNames, lib, module, moduleResolution, outDir (+7 more)
 
-### Community 49 - "package.json"
+### Community 52 - "template-validators.ts"
 Cohesion: 0.13
 Nodes (14): author, bugs, url, description, engines, node, homepage, license (+6 more)
 
-### Community 50 - "activity-feed.tsx"
-Cohesion: 0.17
-Nodes (13): ActivityFeed(), ActivityFeedProps, KIND_THEME, KindTheme, PAGE_SIZES, PageSize, relativeTime(), ActivityItem (+5 more)
-
-### Community 51 - "template-components.ts"
-Cohesion: 0.21
-Nodes (13): buildBodyComponent(), buildButtonPayload(), buildButtonsComponent(), buildFooterComponent(), buildHeaderComponent(), buildMetaTemplatePayload(), CATEGORY_TO_META, MetaButtonPayload (+5 more)
-
-### Community 52 - "template-validators.ts"
-Cohesion: 0.33
-Nodes (13): assertContiguous(), countButtonsByType(), extractVariableIndices(), HeaderValidationResult, TEMPLATE_LIMITS, baseValid, validateBody(), validateButtons() (+5 more)
-
 ### Community 53 - "dashboard/page.tsx"
-Cohesion: 0.20
-Nodes (11): DashboardPage(), deltaLabel(), RangeDays, DeltaRow(), MetricCard(), MetricCardProps, Action, ACTIONS (+3 more)
+Cohesion: 0.29
+Nodes (11): ICON_MAP, IndustryConfig(), IndustryConfigProps, applyIndustryPreset(), getActiveAssetType(), getIndustryPresets(), getSupabaseClient(), INDUSTRY_PRESETS (+3 more)
 
 ### Community 54 - "pipeline-donut.tsx"
-Cohesion: 0.16
-Nodes (8): arcPath(), Donut(), PipelineDonut(), PipelineDonutProps, PipelineDonutData, opus-recorder, Recorder, RecorderConfig
-
-### Community 55 - "use-presence.ts"
-Cohesion: 0.26
-Nodes (10): PresenceMap, UsePresenceResult, derivePresence(), formatLastSeen(), presenceLabel(), PresenceRow, PresenceStatus, StoredPresence (+2 more)
-
-### Community 56 - "compilerOptions"
 Cohesion: 0.14
 Nodes (14): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, module, moduleResolution (+6 more)
 
-### Community 57 - "wacrm README"
+### Community 55 - "use-presence.ts"
 Cohesion: 0.18
 Nodes (13): MCP Documentation, Public REST API Documentation, Hostinger Deploy Screenshot, MCP Server README, wacrm README, AI Reply Assistant, No-code Automations, Broadcasts & Templates (+5 more)
 
-### Community 58 - "automations/engine.test.ts"
-Cohesion: 0.18
-Nodes (7): sleep(), executeAutomation(), runAutomationsForTrigger(), builder(), h, resolve(), triggerMatches()
-
-### Community 59 - "template-webhook.ts"
+### Community 56 - "compilerOptions"
 Cohesion: 0.23
-Nodes (10): handleComponentsUpdate(), handleQualityUpdate(), handleStatusUpdate(), handleTemplateWebhookChange(), isTemplateWebhookField(), TEMPLATE_WEBHOOK_FIELDS, TemplateComponentsUpdateValue, TemplateQualityUpdateValue (+2 more)
+Nodes (11): send/route.ts, findOrCreateConversation(), POST(), SendSupabase, CONTACT, conversationInserts, messageInserts, postContactTemplate() (+3 more)
 
-### Community 60 - "keywords"
+### Community 57 - "wacrm README"
+Cohesion: 0.28
+Nodes (9): PresenceMap, UsePresenceResult, derivePresence(), formatLastSeen(), presenceLabel(), PresenceRow, PresenceStatus, StoredPresence (+1 more)
+
+### Community 58 - "automations/engine.test.ts"
 Cohesion: 0.17
 Nodes (12): dependencies, @modelcontextprotocol/sdk, zod, crm, keywords, @modelcontextprotocol/sdk, whatsapp, ai (+4 more)
 
-### Community 61 - "send/route.ts"
-Cohesion: 0.24
-Nodes (9): findOrCreateConversation(), POST(), SendSupabase, CONTACT, conversationInserts, messageInserts, postContactTemplate(), { sendTemplateMessage } (+1 more)
+### Community 59 - "template-webhook.ts"
+Cohesion: 0.21
+Nodes (11): logs/page.tsx, AutomationLogsPage(), StatusBadge(), StepRow(), AutomationCard(), formatRelative(), TRIGGER_META, triggerMeta (+3 more)
 
-### Community 62 - "template-send-builder.ts"
-Cohesion: 0.24
-Nodes (10): makeDb(), buildBodyComponent(), buildButtonComponent(), buildHeaderComponent(), buildSendComponents(), buttonNeedsSendParam(), MetaSendComponent, MetaSendParameter (+2 more)
-
-### Community 63 - "logs/page.tsx"
-Cohesion: 0.24
-Nodes (9): AutomationLogsPage(), StatusBadge(), StepRow(), AutomationCard(), formatRelative(), TRIGGER_META, triggerMeta, AutomationLog (+1 more)
-
-### Community 64 - "conversations-chart.tsx"
-Cohesion: 0.25
-Nodes (9): ConversationsChart(), ConversationsChartProps, LineSvg(), longDayLabel(), niceCeil(), PADDING, RangeDays, shortDayLabel() (+1 more)
-
-### Community 65 - "automations/meta-send.ts"
-Cohesion: 0.25
-Nodes (10): runStep(), engineSendInteractive(), engineSendTemplate(), engineSendText(), SendInput, SendInteractiveArgs, SendTemplateArgs, SendTextArgs (+2 more)
-
-### Community 66 - "server.json"
+### Community 60 - "keywords"
 Cohesion: 0.20
 Nodes (9): description, name, packages, repository, source, subfolder, url, $schema (+1 more)
 
-### Community 67 - "scripts"
+### Community 61 - "send/route.ts"
 Cohesion: 0.20
 Nodes (10): scripts, build, dev, format, format:check, lint, start, test (+2 more)
 
-### Community 68 - "templates/[id]/route.ts"
-Cohesion: 0.33
-Nodes (6): DELETE(), EDITABLE_STATUSES, isDryRun(), PATCH(), deleteMessageTemplate(), editMessageTemplate()
-
-### Community 69 - "ai-thread-banner.tsx"
+### Community 62 - "template-send-builder.ts"
 Cohesion: 0.24
 Nodes (7): AiAccountStatus, AiThreadBanner(), AiThreadBannerProps, fetchAiAccountStatus(), parseBriefing(), ParsedBriefing, statusCache
 
-### Community 70 - "SettingsPanelHead"
+### Community 63 - "logs/page.tsx"
 Cohesion: 0.22
 Nodes (9): message_templates table, profiles table, MembersTab, ProfileForm, QuickRepliesManager, SettingsOverview, SettingsPanelHead, TemplateManager (+1 more)
 
-### Community 71 - "keywords"
+### Community 64 - "conversations-chart.tsx"
 Cohesion: 0.22
 Nodes (9): crm, keywords, automation, broadcast, nextjs, self-hosted, supabase, template (+1 more)
 
-### Community 72 - "submit/route.ts"
-Cohesion: 0.39
-Nodes (6): buildUpsertRow(), POST(), upsertTemplateRow(), submitMessageTemplate(), ALLOWED, normalizeStatus()
-
-### Community 73 - "sync/route.ts"
-Cohesion: 0.33
-Nodes (8): extractSampleValues(), MetaButton, MetaTemplate, MetaTemplateComponent, normalizeCategory(), normalizeQualityScore(), parseButtons(), POST()
-
-### Community 74 - "runs/page.tsx"
+### Community 65 - "automations/meta-send.ts"
 Cohesion: 0.25
-Nodes (7): EVENT_COLOR, EventLine(), EventRow, RunCard(), RunRow, STATUS_META, summarizePayload()
+Nodes (8): runs/page.tsx, EVENT_COLOR, EventLine(), EventRow, RunCard(), RunRow, STATUS_META, summarizePayload()
 
-### Community 75 - "pipeline-analytics.tsx"
-Cohesion: 0.36
-Nodes (6): computeStageProbability(), PipelineAnalytics(), Tooltip(), TooltipContent(), TooltipProvider(), TooltipTrigger()
-
-### Community 76 - "template-header-handle.ts"
-Cohesion: 0.33
-Nodes (4): calls, uploadResumableMedia(), ALLOWED_IMAGE_TYPES, ensureImageHeaderHandle()
-
-### Community 77 - "PortfolioMediaManager.tsx"
+### Community 66 - "server.json"
 Cohesion: 0.50
 Nodes (7): addPortfolioMedia(), deletePortfolioMedia(), getSupabaseClient(), listPortfolioMedia(), PortfolioMediaManager(), PortfolioMediaManagerProps, PortfolioMedia
 
-### Community 78 - "mcp-server/tsconfig.json"
+### Community 67 - "scripts"
 Cohesion: 0.25
-Nodes (6): exclude, include, dist, src/**/*, exclude, node_modules
+Nodes (7): mcp-server/tsconfig.json, exclude, include, dist, src/**/*, exclude, node_modules
 
-### Community 79 - "response-time-chart.tsx"
-Cohesion: 0.36
-Nodes (6): EmptyState(), fmt(), ResponseTimeChart(), ResponseTimeChartProps, BarChart, ResponseTimeSummary
-
-### Community 80 - "scopes.ts"
+### Community 68 - "templates/[id]/route.ts"
 Cohesion: 0.46
 Nodes (6): API_SCOPES, ApiScope, hasScope(), isApiScope(), normalizeScopes(), SCOPE_DESCRIPTIONS
 
-### Community 81 - "devDependencies"
+### Community 69 - "ai-thread-banner.tsx"
 Cohesion: 0.29
 Nodes (7): devDependencies, @types/node, typescript, @types/node, typescript, @types/node, typescript
 
-### Community 82 - "overrides"
+### Community 70 - "SettingsPanelHead"
 Cohesion: 0.29
 Nodes (7): overrides, @babel/core, fast-uri, hono, ip-address, js-yaml, postcss
 
-### Community 83 - "include"
+### Community 71 - "keywords"
 Cohesion: 0.29
 Nodes (7): **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next/types/**/*.ts, **/*.ts, **/*.tsx, include
 
-### Community 84 - "sidebar.tsx"
-Cohesion: 0.29
-Nodes (6): bottomNavItems, NavItem, navItems, ROLE_CHIP, Sidebar(), SidebarProps
-
-### Community 85 - "parse-contact-csv.ts"
+### Community 72 - "submit/route.ts"
 Cohesion: 0.48
 Nodes (5): parseContactCsv(), ParseContactCsvResult, parseCsvLine(), ParsedContactRow, parseTagCell()
 
-### Community 86 - "scripts"
+### Community 73 - "sync/route.ts"
 Cohesion: 0.33
 Nodes (6): scripts, build, dev, prepublishOnly, start, typecheck
 
-### Community 87 - "react"
+### Community 74 - "runs/page.tsx"
 Cohesion: 0.40
 Nodes (5): react, react, ChartLegend(), ScrollButton(), useOnWindowResize()
 
-### Community 88 - "agents/page.tsx"
+### Community 75 - "pipeline-analytics.tsx"
 Cohesion: 0.40
-Nodes (3): Tab, AiPlayground(), Turn
+Nodes (4): agents/page.tsx, Tab, AiPlayground(), Turn
 
-### Community 89 - "Account Invitations Table"
+### Community 76 - "template-header-handle.ts"
 Cohesion: 0.33
 Nodes (6): Account Invitations Table, Accounts Table, remove_account_member, transfer_account_ownership, peek_invitation, redeem_invitation
 
-### Community 90 - "layout/header.tsx"
+### Community 78 - "mcp-server/tsconfig.json"
 Cohesion: 0.50
-Nodes (4): getPageTitleKey(), Header(), HeaderProps, pageTitles
+Nodes (3): generateStructuredHandoffBriefing(), StructuredHandoffBriefing, h
 
-### Community 92 - "sendMediaMessage"
-Cohesion: 0.40
-Nodes (3): BASE, CapturedBody, sendMediaMessage()
-
-### Community 93 - "Flows Table"
+### Community 79 - "response-time-chart.tsx"
 Cohesion: 0.40
 Nodes (5): Flow Nodes Table, Flow Run Events Table, Flow Runs Table, Flows Table, increment_flow_execution_count
 
-### Community 94 - "glama.json"
+### Community 80 - "scopes.ts"
 Cohesion: 0.50
 Nodes (3): maintainers, $schema, ArnasDon
 
-### Community 95 - "next.config.ts"
+### Community 81 - "devDependencies"
 Cohesion: 0.50
 Nodes (3): nextConfig, SECURITY_HEADERS, withNextIntl
 
-### Community 96 - "lib"
+### Community 82 - "overrides"
 Cohesion: 0.50
 Nodes (4): dom, dom.iterable, esnext, lib
 
-### Community 101 - "template-status.ts"
-Cohesion: 0.50
-Nodes (3): templateStatusConfig, TemplateStatusDisplay, MessageTemplateStatus
+### Community 83 - "include"
+Cohesion: 0.83
+Nodes (4): transfer-ownership/route.ts, looksLikeUuid(), POST(), rpcErrorToResponse()
 
-### Community 103 - "AI Knowledge Chunks Table"
+### Community 89 - "Account Invitations Table"
 Cohesion: 0.50
 Nodes (4): AI Knowledge Chunks Table, AI Knowledge Documents Table, match_ai_knowledge_fts, match_ai_knowledge_semantic
 
-### Community 108 - "SecurityPanel"
+### Community 94 - "glama.json"
 Cohesion: 0.67
 Nodes (3): PasswordForm, SecurityPanel, SessionsCard
 
-### Community 111 - "Profiles Table (Beta Features)"
+### Community 98 - "members.ts"
 Cohesion: 0.67
 Nodes (3): Profiles Table (Beta Features), is_account_member, set_member_role
 
-### Community 112 - "paths"
+### Community 99 - "generate.test.ts"
 Cohesion: 0.67
 Nodes (3): paths, ./src/*, @/*
 
 ## Knowledge Gaps
-- **574 isolated node(s):** `$schema`, `style`, `rsc`, `tsx`, `config` (+569 more)
+- **599 isolated node(s):** `$schema`, `style`, `rsc`, `tsx`, `config` (+594 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **61 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **65 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `cn` to `flow-canvas.tsx`, `contacts/page.tsx`, `createClient`, `button.tsx`, `broadcasts/[id]/page.tsx`, `template-manager.tsx`, `BookingDashboard.tsx`, `members-tab.tsx`, `use-theme.tsx`, `Conversation`, `bar-chart.tsx`, `message-bubble.tsx`, `activity-feed.tsx`, `dashboard/page.tsx`, `logs/page.tsx`, `conversations-chart.tsx`, `runs/page.tsx`, `pipeline-analytics.tsx`, `response-time-chart.tsx`?**
-  _High betweenness centrality (0.111) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `tw-animate-css`, `package.json`, `@base-ui/react`, `@dnd-kit/core`, `react`, `next-intl`, `opus-recorder`, `recharts`, `sonner`, `class-variance-authority`, `@xyflow/react`?**
-  _High betweenness centrality (0.087) - this node is a cross-community bridge._
-- **Why does `react` connect `react` to `dependencies`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `types/index.ts` connect `meta-api.ts` to `cn`, `automation-builder.tsx`, `toErrorResponse`, `createClient`, `auto-reply.ts`, `button.tsx`, `encoderWorker.min.js`, `broadcasts/[id]/page.tsx`, `template-manager.tsx`, `members-tab.tsx`, `WacrmClient`, `requireApiKey`, `use-theme.tsx`, `dependencies`, `message-thread.tsx`, `currency.ts`, `contacts/route.ts`, `MessageTemplate`, `queries.ts`, `automations/new/page.tsx`, `compilerOptions`, `package.json`, `activity-feed.tsx`, `dashboard/page.tsx`, `template-webhook.ts`, `server.json`, `parse-contact-csv.ts`?**
+  _High betweenness centrality (0.276) - this node is a cross-community bridge._
+- **Why does `cn()` connect `cn` to `flow-canvas.tsx`, `automations/meta-send.ts`, `contacts/page.tsx`, `automation-builder.tsx`, `supabaseAdmin`, `auto-reply.ts`, `encoderWorker.min.js`, `broadcasts/[id]/page.tsx`, `MessageTemplate`, `queries.ts`, `automations/new/page.tsx`, `BookingDashboard.tsx`, `package.json`, `WacrmClient`, `createClient`, `template-webhook.ts`?**
+  _High betweenness centrality (0.118) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `send-message.ts` to `template-status.ts`, `webhook-signature.test.ts`, `(auth)/layout.tsx`, `icon.tsx`, `join/layout.tsx`, `runs/page.tsx`, `SecurityPanel`, `middleware.ts`, `middleware.test.ts`, `Profiles Table (Beta Features)`, `template-validators.ts`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **What connects `$schema`, `style`, `rsc` to the rest of the system?**
-  _574 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _599 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `flow-canvas.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.05450372920252438 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05303030303030303 - nodes in this community are weakly interconnected._
 - **Should `contacts/page.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.08186341022161918 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05387861084063616 - nodes in this community are weakly interconnected._
 - **Should `cn` be split into smaller, more focused modules?**
-  _Cohesion score 0.05780885780885781 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.053554040895813046 - nodes in this community are weakly interconnected._

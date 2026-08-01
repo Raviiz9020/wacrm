@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List, XCircle } from "lucide-react";
+import { Calendar, Plus, Clock, User, Trash2, CalendarX2, CheckCircle2, AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare, CalendarDays, List, XCircle, Loader2 } from "lucide-react";
 import { useBooking, type Provider, type Service, type Appointment } from "../hooks/useBooking"; // corrected hook path
 import { MatrixPricingModal } from "./MatrixPricingModal";
 import { PortfolioMediaManager } from "./PortfolioMediaManager";
@@ -22,6 +22,7 @@ import type { TimeSlot } from "../services/slotGenerator";
 import { getMatrixRulesForService } from "../services/matrixPricingService";
 import { getAssetsForContact, recordAssetServiceHistory } from "../services/customerAssetService";
 import type { BookingServicePriceMatrix } from "@/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function BookingDashboard() {
   const { account } = useAuth();
@@ -53,6 +54,34 @@ export function BookingDashboard() {
   const [activeTab, setActiveTab] = useState("appointments");
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([]);
 
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    confirmText?: string;
+    variant?: "default" | "destructive";
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
+  const triggerConfirm = (config: {
+    title: string;
+    description: React.ReactNode;
+    confirmText?: string;
+    variant?: "default" | "destructive";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      ...config,
+    });
+  };
+
   // Edit States
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [editProvServices, setEditProvServices] = useState<string[]>([]);
@@ -71,6 +100,7 @@ export function BookingDashboard() {
 
   // Dialog Open States
   const [isBookOpen, setIsBookOpen] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
   const [isProviderOpen, setIsProviderOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
 
@@ -447,13 +477,20 @@ export function BookingDashboard() {
     }
   };
 
-  const handleDeleteProvider = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this provider? All their weekly schedules and overrides will be lost.")) return;
-    try {
-      await deleteProvider(id);
-    } catch (err) {
-      alert("Failed to delete provider.");
-    }
+  const handleDeleteProvider = (id: string) => {
+    triggerConfirm({
+      title: "Delete Provider",
+      description: "Are you sure you want to delete this provider? All their weekly schedules and overrides will be lost.",
+      confirmText: "Delete",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          await deleteProvider(id);
+        } catch (err) {
+          alert("Failed to delete provider.");
+        }
+      },
+    });
   };
 
   const handleAddService = async (e: React.FormEvent) => {
@@ -484,18 +521,26 @@ export function BookingDashboard() {
     }
   };
 
-  const handleDeleteService = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
-    try {
-      await deleteService(id);
-    } catch (err) {
-      alert("Failed to delete service.");
-    }
+  const handleDeleteService = (id: string) => {
+    triggerConfirm({
+      title: "Delete Service",
+      description: "Are you sure you want to delete this service?",
+      confirmText: "Delete",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          await deleteService(id);
+        } catch (err) {
+          alert("Failed to delete service.");
+        }
+      },
+    });
   };
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookProviderId || !bookServiceId || !bookContactId || !bookDate || !bookSlot) return;
+    setIsBooking(true);
     try {
       let finalNotes = bookNotes;
       const selectedRule = bookMatrixRules.find((r) => r.id === selectedMatrixRuleId);
@@ -541,6 +586,8 @@ export function BookingDashboard() {
       setIsBookOpen(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Booking conflict occurred.");
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -595,25 +642,32 @@ export function BookingDashboard() {
     }
   };
 
-  const handleDeleteOverride = async (overrideId: string) => {
-    if (!confirm("Are you sure you want to remove this override?")) return;
-    try {
-      const { error } = await supabase
-        .from("booking_schedule_overrides")
-        .delete()
-        .eq("id", overrideId);
-      if (error) throw error;
+  const handleDeleteOverride = (overrideId: string) => {
+    triggerConfirm({
+      title: "Remove Override",
+      description: "Are you sure you want to remove this schedule override?",
+      confirmText: "Remove",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from("booking_schedule_overrides")
+            .delete()
+            .eq("id", overrideId);
+          if (error) throw error;
 
-      // Refetch overrides
-      const { data: overrides } = await supabase
-        .from("booking_schedule_overrides")
-        .select("*")
-        .eq("provider_id", schedProviderId)
-        .order("override_date", { ascending: true });
-      setOverrideList(overrides || []);
-    } catch (err) {
-      alert("Failed to delete schedule override.");
-    }
+          // Refetch overrides
+          const { data: overrides } = await supabase
+            .from("booking_schedule_overrides")
+            .select("*")
+            .eq("provider_id", schedProviderId)
+            .order("override_date", { ascending: true });
+          setOverrideList(overrides || []);
+        } catch (err) {
+          alert("Failed to delete schedule override.");
+        }
+      },
+    });
   };
 
   const formatDateTime = (isoStr: string) => {
@@ -831,7 +885,16 @@ export function BookingDashboard() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={!bookSlot}>Confirm Booking</Button>
+                <Button type="submit" disabled={!bookSlot || isBooking} className="min-w-[130px]">
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      Booking...
+                    </>
+                  ) : (
+                    "Confirm Booking"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -1107,9 +1170,13 @@ export function BookingDashboard() {
                                     size="icon"
                                     className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                     onClick={() => {
-                                      if (confirm("Are you sure you want to cancel this appointment?")) {
-                                        cancel(appt.id);
-                                      }
+                                      triggerConfirm({
+                                        title: "Cancel Appointment",
+                                        description: "Are you sure you want to cancel this appointment?",
+                                        confirmText: "Cancel Appointment",
+                                        variant: "destructive",
+                                        onConfirm: () => cancel(appt.id),
+                                      });
                                     }}
                                     title="Cancel Appointment"
                                   >
@@ -1123,9 +1190,13 @@ export function BookingDashboard() {
                                     size="icon"
                                     className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                     onClick={() => {
-                                      if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                        deleteAppointment(appt.id);
-                                      }
+                                      triggerConfirm({
+                                        title: "Delete Appointment",
+                                        description: "Are you sure you want to permanently delete this cancelled appointment?",
+                                        confirmText: "Delete",
+                                        variant: "destructive",
+                                        onConfirm: () => deleteAppointment(appt.id),
+                                      });
                                     }}
                                     title="Delete Appointment permanently"
                                   >
@@ -1360,9 +1431,13 @@ export function BookingDashboard() {
                                             size="icon"
                                             className="h-5 w-5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                             onClick={() => {
-                                              if (confirm("Are you sure you want to cancel this appointment?")) {
-                                                cancel(appt.id);
-                                              }
+                                              triggerConfirm({
+                                                title: "Cancel Appointment",
+                                                description: "Are you sure you want to cancel this appointment?",
+                                                confirmText: "Cancel Appointment",
+                                                variant: "destructive",
+                                                onConfirm: () => cancel(appt.id),
+                                              });
                                             }}
                                             title="Cancel Appointment"
                                           >
@@ -1376,9 +1451,13 @@ export function BookingDashboard() {
                                             size="icon"
                                             className="h-5 w-5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                             onClick={() => {
-                                              if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                                deleteAppointment(appt.id);
-                                              }
+                                              triggerConfirm({
+                                                title: "Delete Appointment",
+                                                description: "Are you sure you want to permanently delete this cancelled appointment?",
+                                                confirmText: "Delete",
+                                                variant: "destructive",
+                                                onConfirm: () => deleteAppointment(appt.id),
+                                              });
                                             }}
                                             title="Delete Appointment permanently"
                                           >
@@ -1474,9 +1553,13 @@ export function BookingDashboard() {
                                   size="icon"
                                   className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
                                   onClick={() => {
-                                    if (confirm("Are you sure you want to cancel this appointment?")) {
-                                      cancel(appt.id);
-                                    }
+                                    triggerConfirm({
+                                      title: "Cancel Appointment",
+                                      description: "Are you sure you want to cancel this appointment?",
+                                      confirmText: "Cancel Appointment",
+                                      variant: "destructive",
+                                      onConfirm: () => cancel(appt.id),
+                                    });
                                   }}
                                   title="Cancel Appointment"
                                 >
@@ -1490,9 +1573,13 @@ export function BookingDashboard() {
                                   size="icon"
                                   className="text-muted-foreground hover:text-rose-400 rounded-lg h-8 w-8 hover:bg-rose-500/10"
                                   onClick={() => {
-                                    if (confirm("Are you sure you want to permanently delete this cancelled appointment?")) {
-                                      deleteAppointment(appt.id);
-                                    }
+                                    triggerConfirm({
+                                      title: "Delete Appointment",
+                                      description: "Are you sure you want to permanently delete this cancelled appointment?",
+                                      confirmText: "Delete",
+                                      variant: "destructive",
+                                      onConfirm: () => deleteAppointment(appt.id),
+                                    });
                                   }}
                                   title="Delete Appointment permanently"
                                 >
@@ -2201,6 +2288,16 @@ export function BookingDashboard() {
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmText={confirmDialog.confirmText}
+        variant={confirmDialog.variant}
+      />
     </div>
   );
 }

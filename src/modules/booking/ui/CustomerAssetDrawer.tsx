@@ -33,6 +33,7 @@ import {
   type SchemaField,
 } from '../services/industryPresetService';
 import type { CustomerAsset, CustomerAssetHistory, AssetType } from '@/types';
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   car_detailing: Car,
@@ -107,6 +108,34 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
   const [formAttributes, setFormAttributes] = useState<Record<string, string>>({});
   const [isCustomTitle, setIsCustomTitle] = useState<boolean>(false);
 
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    confirmText?: string;
+    variant?: "default" | "destructive";
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
+  const triggerConfirm = (config: {
+    title: string;
+    description: React.ReactNode;
+    confirmText?: string;
+    variant?: "default" | "destructive";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      ...config,
+    });
+  };
+
   const loadData = useCallback(async () => {
     if (!contactId || !accountId) return;
     setLoading(true);
@@ -146,21 +175,27 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
     }
   };
 
-  const handleDeleteAsset = async (e: React.MouseEvent, assetId: string, name: string) => {
+  const handleDeleteAsset = (e: React.MouseEvent, assetId: string, name: string) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-
-    try {
-      await deleteCustomerAsset(assetId, accountId);
-      if (selectedAssetId === assetId) {
-        setSelectedAssetId(null);
-        setHistoryList([]);
-      }
-      await loadData();
-    } catch (err) {
-      console.error('Failed to delete asset:', err);
-      alert(`Failed to delete ${assetTypeName.toLowerCase()} asset. Please try again.`);
-    }
+    triggerConfirm({
+      title: `Delete ${assetTypeName}`,
+      description: `Are you sure you want to delete "${name}"?`,
+      confirmText: "Delete",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          await deleteCustomerAsset(assetId, accountId);
+          if (selectedAssetId === assetId) {
+            setSelectedAssetId(null);
+            setHistoryList([]);
+          }
+          await loadData();
+        } catch (err) {
+          console.error('Failed to delete asset:', err);
+          alert(`Failed to delete ${assetTypeName.toLowerCase()} asset. Please try again.`);
+        }
+      },
+    });
   };
 
   const handleSaveLog = async (e: React.FormEvent, assetId: string) => {
@@ -186,16 +221,23 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
     }
   };
 
-  const handleDeleteLogEntry = async (historyId: string, assetId: string) => {
-    if (!confirm('Are you sure you want to delete this log entry?')) return;
-    try {
-      await deleteAssetServiceHistory(historyId, accountId);
-      const history = await getAssetServiceHistory(assetId, accountId);
-      setHistoryList(history);
-    } catch (err) {
-      console.error('Failed to delete history log:', err);
-      alert('Failed to delete log entry.');
-    }
+  const handleDeleteLogEntry = (historyId: string, assetId: string) => {
+    triggerConfirm({
+      title: "Delete Log Entry",
+      description: "Are you sure you want to delete this log entry? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          await deleteAssetServiceHistory(historyId, accountId);
+          const history = await getAssetServiceHistory(assetId, accountId);
+          setHistoryList(history);
+        } catch (err) {
+          console.error('Failed to delete history log:', err);
+          alert('Failed to delete log entry.');
+        }
+      },
+    });
   };
 
   const handleUpdateLogEntry = async (e: React.FormEvent, historyId: string, assetId: string) => {
@@ -644,6 +686,16 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
       )}
     </div>
   )}
+
+  <ConfirmDialog
+    isOpen={confirmDialog.isOpen}
+    onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+    onConfirm={confirmDialog.onConfirm}
+    title={confirmDialog.title}
+    description={confirmDialog.description}
+    confirmText={confirmDialog.confirmText}
+    variant={confirmDialog.variant}
+  />
 </div>
   );
 }
