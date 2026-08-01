@@ -1280,9 +1280,16 @@ async function processMessage(
         });
         bookingSlotsHandled = true; // Prevents AI from taking over
       } else {
+        const BUSINESS_TIMEZONE = 'Asia/Kolkata';
         const buttons = activeAppts.map((appt: any) => {
           const dateObj = new Date(appt.start_time);
-          const timeStr = dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+          const timeStr = dateObj.toLocaleString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          });
           return {
             id: `cancel:${appt.id}`,
             title: `Cancel ${timeStr}`.substring(0, 20),
@@ -1328,9 +1335,11 @@ async function processMessage(
           .maybeSingle();
 
         if (apptInfo) {
+          const BUSINESS_TIMEZONE = 'Asia/Kolkata';
           const providerName = (apptInfo.provider as any)?.name || 'Provider';
           const serviceName = (apptInfo.service as any)?.name || 'Service';
           const startTime = new Date(apptInfo.start_time).toLocaleString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
@@ -1338,11 +1347,13 @@ async function processMessage(
           });
           const startUtc = new Date(apptInfo.start_time);
           const apptDate = startUtc.toLocaleDateString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             month: 'short',
             day: 'numeric',
             year: 'numeric'
           });
           const apptTime = startUtc.toLocaleTimeString('en-US', {
+            timeZone: BUSINESS_TIMEZONE,
             hour: 'numeric',
             minute: '2-digit'
           });
