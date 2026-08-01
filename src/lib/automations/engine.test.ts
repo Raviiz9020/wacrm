@@ -336,3 +336,56 @@ describe("triggerMatches — interactive_reply", () => {
     expect(triggerMatches(automation([]), { interactive_reply_id: "yes" })).toBe(false);
   });
 });
+
+import { engineSendInteractive } from "./meta-send";
+
+describe("send_buttons — variable interpolation", () => {
+  it("interpolates variables in the body text of a send_buttons step", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [
+      {
+        id: "a1",
+        account_id: ACCOUNT,
+        user_id: "u1",
+        name: "test automation",
+        trigger_type: "new_message_received",
+        is_active: true,
+        execution_count: 0,
+        created_at: "",
+        updated_at: "",
+      } as any,
+    ];
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_buttons",
+        step_config: {
+          kind: "buttons",
+          body: "Hello {{ vars.customer_name }}",
+          buttons: [{ id: "btn1", title: "Click me" }],
+        },
+        position: 0,
+      } as any,
+    ];
+
+    vi.mocked(engineSendInteractive).mockClear();
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { conversation_id: "conv-1", vars: { customer_name: "Alice" } },
+    });
+
+    expect(engineSendInteractive).toHaveBeenCalledTimes(1);
+    expect(engineSendInteractive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          body: "Hello Alice",
+        }),
+      })
+    );
+  });
+});
+

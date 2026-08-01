@@ -366,8 +366,14 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
 
     case 'send_buttons':
     case 'send_list': {
-      const payload = step.step_config as SendButtonsStepConfig | SendListStepConfig
+      const origPayload = step.step_config as SendButtonsStepConfig | SendListStepConfig
       if (!args.contactId) throw new Error(`${step.step_type} needs a contact`)
+      const payload = {
+        ...origPayload,
+        body: origPayload.body ? interpolate(origPayload.body, args) : '',
+        header: origPayload.header ? interpolate(origPayload.header, args) : undefined,
+        footer: origPayload.footer ? interpolate(origPayload.footer, args) : undefined,
+      }
       // Validate against Meta's limits before the network call so a bad
       // payload surfaces as a clear failed-step detail rather than a raw
       // Meta 400 mid-conversation.
