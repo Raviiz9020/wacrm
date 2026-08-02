@@ -103,7 +103,10 @@ function buildHeaderComponent(
   // sample (`example.header_handle`); it is NOT a reusable send-time
   // media id, and passing it as `{ id }` makes Meta reject the send. Only
   // an explicit `headerMediaId` (a real /media upload id) is honored.
-  const link = params.headerMediaUrl ?? template.header_media_url;
+  let link = params.headerMediaUrl ?? template.header_media_url;
+  if (!link && template.header_handle?.startsWith('http')) {
+    link = template.header_handle;
+  }
   const id = params.headerMediaId;
   if (!link && !id) {
     throw new Error(
