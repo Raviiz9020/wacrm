@@ -273,6 +273,7 @@ export interface WhatsAppConfig {
   waba_id?: string;
   access_token: string;
   verify_token?: string;
+  app_id?: string | null;
   status: 'connected' | 'disconnected';
   connected_at?: string;
   /**

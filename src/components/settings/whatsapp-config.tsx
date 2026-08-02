@@ -65,6 +65,7 @@ export function WhatsAppConfig() {
 
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [wabaId, setWabaId] = useState('');
+  const [appId, setAppId] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
@@ -115,6 +116,7 @@ export function WhatsAppConfig() {
         setConfig(data);
         setPhoneNumberId(data.phone_number_id || '');
         setWabaId(data.waba_id || '');
+        setAppId(data.app_id || '');
         setAccessToken(MASKED_TOKEN);
         setVerifyToken('');
         setPin('');
@@ -123,6 +125,7 @@ export function WhatsAppConfig() {
         setConfig(null);
         setPhoneNumberId('');
         setWabaId('');
+        setAppId('');
         setAccessToken('');
         setVerifyToken('');
         setPin('');
@@ -200,6 +203,7 @@ export function WhatsAppConfig() {
       const payload: Record<string, unknown> = {
         phone_number_id: phoneNumberId.trim(),
         waba_id: wabaId.trim() || null,
+        app_id: appId.trim() || null,
         verify_token: verifyToken.trim() || null,
         // Optional — only sent when the user filled it in. The server
         // requires it on first save or when changing numbers; for a
@@ -595,6 +599,22 @@ export function WhatsAppConfig() {
                 disabled={!canEditSettings}
                 className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-70"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">
+                Meta App ID <span className="ml-1 text-muted-foreground">(Optional)</span>
+              </Label>
+              <Input
+                placeholder="e.g. 178766012345678"
+                value={appId}
+                onChange={(e) => setAppId(e.target.value)}
+                disabled={!canEditSettings}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-70"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for Meta&apos;s Resumable Upload when creating or editing image-header templates.
+              </p>
             </div>
 
             <div className="space-y-2">
