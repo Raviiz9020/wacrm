@@ -196,10 +196,31 @@ async function executeAutomation(automation: Automation, input: DispatchInput) {
     return
   }
 
+  const context = { ...(input.context ?? {}) }
+  context.vars = { ...(context.vars ?? {}) }
+
+  if (input.contactId && !context.vars.customer_name) {
+    try {
+      const { data: contactRow } = await db
+        .from('contacts')
+        .select('name, phone')
+        .eq('id', input.contactId)
+        .maybeSingle()
+
+      if (contactRow?.name) {
+        context.vars.customer_name = contactRow.name
+        context.vars.contact_name = contactRow.name
+        context.vars.name = contactRow.name
+      }
+    } catch (err) {
+      console.error('[automations] failed to fetch contact for context interpolation:', err)
+    }
+  }
+
   await executeStepsFrom({
     automation,
     contactId: input.contactId ?? null,
-    context: input.context ?? {},
+    context,
     parentStepId: null,
     branch: null,
     startPosition: 0,
@@ -719,7 +740,26 @@ function interpolate(s: string, args: ExecuteArgs): string {
   return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
     const [ns, prop] = String(key).split('.')
     if (ns === 'message' && prop === 'text') return String(args.context.message_text ?? '')
-    if (ns === 'vars' && prop) return String(args.context.vars?.[prop] ?? '')
+    if ((ns === 'vars' || ns === 'contact') && prop) {
+      if (prop === 'customer_name' || prop === 'name' || prop === 'contact_name') {
+        return String(
+          args.context.vars?.customer_name ||
+          args.context.vars?.contact_name ||
+          args.context.vars?.name ||
+          ''
+        )
+      }
+      if (prop === 'first_name') {
+        const full = String(
+          args.context.vars?.customer_name ||
+          args.context.vars?.contact_name ||
+          args.context.vars?.name ||
+          ''
+        )
+        return full.split(' ')[0] || full
+      }
+      return String(args.context.vars?.[prop] ?? '')
+    }
     return ''
   })
 }
