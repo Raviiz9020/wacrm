@@ -327,6 +327,13 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // Delete associated customer asset history entry
+    await supabase
+      .from('customer_asset_history')
+      .delete()
+      .eq('appointment_id', appointment_id)
+      .eq('account_id', accountId);
+
     // Delete the appointment row
     const { error: deleteErr } = await supabase
       .from('booking_appointments')

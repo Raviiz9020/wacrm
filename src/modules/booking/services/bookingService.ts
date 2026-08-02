@@ -238,3 +238,30 @@ export async function rescheduleAppointment(
 
   return updated;
 }
+
+/**
+ * Deletes an appointment and cleans up its associated service history log.
+ */
+export async function deleteAppointment(
+  accountId: string,
+  appointmentId: string,
+  client = supabaseAdmin()
+) {
+  // Delete associated customer asset history entry
+  await client
+    .from('customer_asset_history')
+    .delete()
+    .eq('appointment_id', appointmentId)
+    .eq('account_id', accountId);
+
+  // Delete the appointment
+  const { error } = await client
+    .from('booking_appointments')
+    .delete()
+    .eq('id', appointmentId)
+    .eq('account_id', accountId);
+
+  if (error) {
+    throw new Error(`Appointment deletion failed: ${error.message}`);
+  }
+}
