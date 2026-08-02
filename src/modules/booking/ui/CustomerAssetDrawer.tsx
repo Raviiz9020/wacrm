@@ -154,15 +154,16 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
   }, [contactId, accountId]);
 
   useEffect(() => {
-    if (isOpen) {
-      loadData();
-      if (selectedAssetId && accountId) {
-        getAssetServiceHistory(selectedAssetId, accountId)
-          .then(setHistoryList)
-          .catch(err => console.error('Failed to refresh asset history:', err));
-      }
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (isOpen && selectedAssetId && accountId) {
+      getAssetServiceHistory(selectedAssetId, accountId)
+        .then(setHistoryList)
+        .catch(err => console.error('Failed to refresh asset history:', err));
     }
-  }, [isOpen, loadData, selectedAssetId, accountId]);
+  }, [isOpen, selectedAssetId, accountId]);
 
   const handleSelectAsset = async (assetId: string) => {
     if (selectedAssetId === assetId) {
