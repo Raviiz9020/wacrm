@@ -164,6 +164,18 @@ export async function recordAssetServiceHistory(
   const nextServiceObj = new Date(serviceDateObj);
   nextServiceObj.setMonth(nextServiceObj.getMonth() + nextServiceMonths);
 
+  if (appointmentId) {
+    const { data: existing } = await client
+      .from('customer_asset_history')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .maybeSingle();
+
+    if (existing) {
+      return existing;
+    }
+  }
+
   const { data, error } = await client
     .from('customer_asset_history')
     .insert({

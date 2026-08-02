@@ -549,31 +549,7 @@ export function BookingDashboard() {
         finalNotes = finalNotes ? `${variantTag} ${finalNotes}` : variantTag;
       }
 
-      const newAppt = await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, finalNotes);
-
-      // Auto-log to customer asset service history if contact has assets
-      if (account?.id && bookContactId) {
-        try {
-          const assets = await getAssetsForContact(bookContactId, account.id);
-          const firstAsset = assets[0];
-          if (firstAsset) {
-            const serviceObj = services.find((s) => s.id === bookServiceId);
-            const serviceLabel = serviceObj?.name || "Service";
-            const variantText = selectedRule ? ` (${selectedRule.attribute_value})` : "";
-            const logNotes = `${serviceLabel}${variantText}. ${bookNotes}`.trim();
-            await recordAssetServiceHistory({
-              accountId: account.id,
-              assetId: firstAsset.id,
-              appointmentId: newAppt?.id || null,
-              serviceId: bookServiceId,
-              serviceDate: bookDate ? new Date(bookDate).toISOString() : new Date().toISOString(),
-              notes: logNotes,
-            });
-          }
-        } catch (logErr) {
-          console.error("Auto-logging asset history failed:", logErr);
-        }
-      }
+      await bookAppointment(bookProviderId, bookServiceId, bookContactId, bookDate, bookSlot, finalNotes);
 
       setBookProviderId("");
       setBookServiceId("");
