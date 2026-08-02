@@ -650,6 +650,11 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
     )
   }
 
+  if (automation.trigger_type === 'tag_added') {
+    const cfg = automation.trigger_config as { tag_id?: string }
+    return cfg?.tag_id === ctx?.tag_id
+  }
+
   return true
 }
 

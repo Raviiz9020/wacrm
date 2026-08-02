@@ -194,6 +194,24 @@ export function ContactForm({
             .insert(tagRows);
           if (tagError) throw tagError;
         }
+
+        // Fire automations for newly added tags
+        const originalTagIds = new Set((contactTags ?? []).map((ct) => ct.tag_id));
+        const newlyAddedTagIds = selectedTagIds.filter((id) => !originalTagIds.has(id));
+
+        for (const tagId of newlyAddedTagIds) {
+          fetch('/api/automations/engine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trigger_type: 'tag_added',
+              contact_id: contactId,
+              context: { tag_id: tagId },
+            }),
+          }).catch((err) => {
+            console.error('Failed to trigger tag_added automation:', err);
+          });
+        }
       }
 
       toast.success(isEdit ? t('toastSuccessEdit') : t('toastSuccessAdd'));

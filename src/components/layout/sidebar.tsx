@@ -26,6 +26,8 @@ import {
   X,
   Zap,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { AccountRole } from "@/lib/auth/roles";
 
@@ -111,11 +113,18 @@ interface SidebarProps {
   /** Controlled on mobile by the Header's hamburger button. Ignored on lg+. */
   open?: boolean;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 import { useTranslations } from "next-intl";
 
-export function Sidebar({ open = false, onClose }: SidebarProps) {
+export function Sidebar({
+  open = false,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
   const { profile, profileLoading, account, accountRole, signOut } = useAuth();
@@ -182,25 +191,44 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           "transition-transform duration-200 ease-out will-change-transform",
           open ? "translate-x-0" : "-translate-x-full",
           // Desktop: static, always visible — reset all the mobile framing.
-          "lg:static lg:z-0 lg:w-60 lg:translate-x-0 lg:transition-none",
+          "lg:static lg:relative lg:z-0 lg:translate-x-0 lg:transition-all lg:duration-200 lg:ease-in-out lg:shrink-0",
+          collapsed ? "lg:w-16" : "lg:w-60"
         )}
         aria-label="Primary"
       >
+        {/* Desktop Collapse Toggle Button (Floating on the right border) */}
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="hidden lg:flex absolute -right-3.5 top-20 z-50 h-7 w-7 items-center justify-center rounded-full border border-border/80 bg-background shadow-md text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-200 cursor-pointer"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
         {/* Logo row. On mobile we put a close button here; on desktop the
             close button is hidden since the sidebar is always-visible. */}
-        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <div className={cn(
+          "flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4",
+          collapsed && "lg:px-0 lg:justify-center"
+        )}>
+          <Link href="/dashboard" className={cn("flex items-center gap-2", collapsed && "lg:justify-center")}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <MessageSquare className="h-4 w-4" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground leading-tight">
-                {t("title")}
-              </span>
-              <span className="text-[10px] text-muted-foreground leading-tight">
-                by HyperTechLabs
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-foreground leading-tight">
+                  {t("title")}
+                </span>
+                <span className="text-[10px] text-muted-foreground leading-tight">
+                  by HyperTechLabs
+                </span>
+              </div>
+            )}
           </Link>
           <button
             type="button"
@@ -240,11 +268,21 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:h-10 lg:mx-auto"
                     )}
+                    title={collapsed ? t(item.labelKey as string) : undefined}
                   >
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{t(item.labelKey as string)}</span>
-                    {item.beta && (
+                    <div className="relative">
+                      <item.icon className="h-4 w-4" />
+                      {collapsed && (showUnreadDot || showNotificationBadge) && (
+                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                        </span>
+                      )}
+                    </div>
+                    {!collapsed && <span className="flex-1">{t(item.labelKey as string)}</span>}
+                    {!collapsed && item.beta && (
                       <span
                         aria-label={t("beta")}
                         className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-300"
@@ -252,7 +290,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         {t("beta")}
                       </span>
                     )}
-                    {showUnreadDot && (
+                    {!collapsed && showUnreadDot && (
                       <span
                         aria-label={t("unreadConversations", { count: totalUnread })}
                         className="relative flex h-2 w-2"
@@ -261,7 +299,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                       </span>
                     )}
-                    {showNotificationBadge && (
+                    {!collapsed && showNotificationBadge && (
                       <span
                         aria-label={t("unreadNotifications", { count: unreadNotifications })}
                         className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
@@ -289,16 +327,20 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:h-10 lg:mx-auto"
                     )}
+                    title={collapsed ? t(item.labelKey as string) : undefined}
                   >
                     <item.icon className="h-4 w-4" />
-                    {t(item.labelKey as string)}
+                    {!collapsed && t(item.labelKey as string)}
                   </Link>
                 </li>
               );
             })}
           </ul>
         </nav>
+
+
 
         {/* User section */}
         <div className="shrink-0 border-t border-border p-3">
@@ -308,7 +350,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               match, so we hide it to avoid duplicating the user name
               below; for renamed or shared accounts it tells the user
               which account they're acting in. */}
-          {showAccountStrip && account?.name ? (
+          {!collapsed && showAccountStrip && account?.name ? (
             <div className="mb-2 flex items-center gap-2 px-3 text-xs text-muted-foreground">
               <UsersRound className="size-3.5 shrink-0" />
               {/* `title=` exposes the full name on hover when it
@@ -338,7 +380,12 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
             </div>
           ) : null}
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/60 focus:bg-muted/60 focus:outline-none data-popup-open:bg-muted/60">
+            <DropdownMenuTrigger className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/60 focus:bg-muted/60 focus:outline-none data-popup-open:bg-muted/60",
+              collapsed && "justify-center px-0 lg:w-10 lg:h-10 lg:mx-auto"
+            )}
+            title={collapsed ? profile?.full_name ?? t("defaultUser") : undefined}
+            >
               <Avatar className="size-8 shrink-0">
                 {profile?.avatar_url ? (
                   <AvatarImage
@@ -352,19 +399,21 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                     "U"}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {profile?.full_name ?? t("defaultUser")}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {profile?.email ?? ""}
-                </p>
-              </div>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {profile?.full_name ?? t("defaultUser")}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {profile?.email ?? ""}
+                  </p>
+                </div>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              align="end"
-              side="top"
-              sideOffset={6}
+              align={collapsed ? "center" : "end"}
+              side={collapsed ? "right" : "top"}
+              sideOffset={12}
               className="min-w-56 bg-popover text-popover-foreground ring-border"
             >
               <DropdownMenuItem

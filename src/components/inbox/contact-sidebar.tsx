@@ -27,8 +27,10 @@ import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { InboxAiAssistant } from "@/components/inbox/inbox-ai-assistant";
 import { CustomerAssetDrawer } from "@/modules/booking/ui/CustomerAssetDrawer";
+import { ContactForm } from "@/components/contacts/contact-form";
 
 const AI_PANEL_STORAGE_KEY = "wacrm:inbox:ai-panel-open";
+const SIDEBAR_WIDTH_KEY = "wacrm:inbox:sidebar-width";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -47,6 +49,44 @@ export function ContactSidebar({
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
+  const [width, setWidth] = useState(288);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed >= 288 && parsed <= 600) {
+          setWidth(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = startX - moveEvent.clientX; // drag left increases width
+      const newWidth = Math.max(288, Math.min(600, startWidth + deltaX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      const deltaX = startX - upEvent.clientX;
+      const finalWidth = Math.max(288, Math.min(600, startWidth + deltaX));
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(finalWidth));
+      } catch {}
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, [width]);
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -57,6 +97,7 @@ export function ContactSidebar({
   const [infoOpen, setInfoOpen] = useState(true);
   const [notesOpen, setNotesOpen] = useState(false);
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   /**
    * Whether the AI assistant panel is expanded.
@@ -251,7 +292,15 @@ export function ContactSidebar({
 
   if (!contact) {
     return (
-      <div className="flex h-full w-72 flex-col border-l border-border bg-card">
+      <div
+        style={{ width: `${width}px` }}
+        className="relative flex h-full flex-col border-l border-border bg-card shrink-0"
+      >
+        {/* Drag Resize Divider */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/40 transition-colors z-50 group active:bg-primary"
+        />
         {/* Contact area placeholder */}
         <div className="flex flex-1 items-center justify-center border-b border-border">
           <p className="text-sm text-muted-foreground">
@@ -303,7 +352,15 @@ export function ContactSidebar({
   const initials = (displayName || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="flex h-full w-72 flex-col p-3 space-y-3 border-l border-border bg-card text-xs overflow-hidden">
+    <div
+      style={{ width: `${width}px` }}
+      className="relative flex h-full flex-col p-3 space-y-3 border-l border-border bg-card text-xs overflow-hidden shrink-0"
+    >
+      {/* Drag Resize Divider */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/40 transition-colors z-50 group active:bg-primary"
+      />
       {/* Top 3 Accordions Container */}
       <div className={cn("space-y-3 w-full transition-all duration-200", aiPanelOpen ? "shrink-0 max-h-[35%] overflow-y-auto" : "flex-1 min-h-0 overflow-y-auto")}>
         {/* 1. Contact Details Accordion */}
@@ -328,7 +385,7 @@ export function ContactSidebar({
           {infoOpen && (
             <div className="p-3 space-y-3 border-t border-border/60">
               {/* Contact Info — compact horizontal row */}
-              <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-2">
+              <div className="flex items-start justify-between gap-3 rounded-lg bg-muted/30 p-2">
                 <div className="min-w-0 flex-1">
                   {contact.company && (
                     <p className="truncate text-xs font-medium text-foreground">
@@ -348,6 +405,14 @@ export function ContactSidebar({
                     )}
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-colors shrink-0"
+                  title="Edit Contact Details"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               </div>
 
               {/* Email (if present) */}
@@ -618,6 +683,15 @@ export function ContactSidebar({
           </div>
         )}
       </div>
+      {isEditModalOpen && contact && (
+        <ContactForm
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+          contact={contact}
+          contactTags={tags.map(t => ({ id: t.contact_tag_id, contact_id: contact.id, tag_id: t.id }))}
+          onSaved={fetchContactData}
+        />
+      )}
     </div>
   );
 }

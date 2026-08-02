@@ -247,6 +247,19 @@ export function ContactDetailView({
       if (!error) {
         setContactTagIds((prev) => [...prev, tagId]);
         onUpdated();
+
+        // Fire automations engine trigger
+        fetch('/api/automations/engine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trigger_type: 'tag_added',
+            contact_id: contactId,
+            context: { tag_id: tagId },
+          }),
+        }).catch((err) => {
+          console.error('Failed to trigger tag_added automation:', err);
+        });
       }
     }
     setSavingTags(false);
