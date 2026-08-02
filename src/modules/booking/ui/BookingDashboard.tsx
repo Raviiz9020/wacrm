@@ -529,9 +529,12 @@ export function BookingDashboard() {
       variant: "destructive",
       onConfirm: async () => {
         try {
-          await deleteService(id);
-        } catch (err) {
-          alert("Failed to delete service.");
+          const res = await deleteService(id);
+          if (res?.deactivated) {
+            alert("This service is linked to existing customer asset/maintenance history and cannot be deleted. It has been marked as Inactive instead.");
+          }
+        } catch (err: any) {
+          alert(err?.message ? `Failed to delete service: ${err.message}` : "Failed to delete service.");
         }
       },
     });

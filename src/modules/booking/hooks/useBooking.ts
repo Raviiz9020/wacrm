@@ -390,8 +390,23 @@ export function useBooking() {
         .delete()
         .eq('id', serviceId)
         .eq('account_id', account.id);
-      if (error) throw error;
+
+      if (error) {
+        if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
+          const { error: updateError } = await supabase
+            .from('booking_services')
+            .update({ is_active: false })
+            .eq('id', serviceId)
+            .eq('account_id', account.id);
+
+          if (updateError) throw updateError;
+          setServices(prev => prev.map(s => s.id === serviceId ? { ...s, is_active: false } : s));
+          return { deactivated: true };
+        }
+        throw error;
+      }
       setServices(prev => prev.filter(s => s.id !== serviceId));
+      return { deleted: true };
     } catch (err) {
       console.error('Delete service failed:', err);
       throw err;
