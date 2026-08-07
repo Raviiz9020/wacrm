@@ -230,3 +230,87 @@ export async function applyIndustryPreset(
     return created as AssetType;
   }
 }
+
+/**
+ * Updates the fields array inside the active asset type schema.
+ */
+export async function updateActiveAssetTypeSchema(
+  accountId: string,
+  updatedFields: SchemaField[],
+  passedClient?: any
+): Promise<AssetType> {
+  const client = getSupabaseClient(passedClient);
+
+  const { data: existing, error: fetchErr } = await client
+    .from('asset_types')
+    .select('*')
+    .eq('account_id', accountId)
+    .maybeSingle();
+
+  if (fetchErr || !existing) {
+    throw new Error('No active asset schema found for this account.');
+  }
+
+  const updatedSchema = {
+    ...(existing.schema_definition as object),
+    fields: updatedFields,
+  };
+
+  const { data, error } = await client
+    .from('asset_types')
+    .update({
+      schema_definition: updatedSchema,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', existing.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as AssetType;
+}
+
+/**
+ * Creates or updates a custom industry preset.
+ */
+export async function applyCustomIndustryPreset(
+  accountId: string,
+  input: {
+    industryName: string;
+    assetName: string;
+    description: string;
+    fields: SchemaField[];
+  },
+  passedClient?: any
+): Promise<AssetType> {
+  const client = getSupabaseClient(passedClient);
+
+  const schemaDefinition = {
+    preset_key: 'custom',
+    preset_name: input.industryName,
+    fields: input.fields,
+  };
+
+  const { data: existing } = await client
+    .from('asset_types')
+    .select('*')
+    .eq('account_id', accountId)
+    .maybeSingle();
+
+  const payload = {
+    account_id: accountId,
+    name: input.assetName,
+    description: input.description,
+    schema_definition: schemaDefinition,
+    updated_at: new Date().toISOString(),
+  };
+
+  const query = existing
+    ? client.from('asset_types').update(payload).eq('id', existing.id)
+    : client.from('asset_types').insert(payload);
+
+  const { data, error } = await query.select().single();
+  if (error) throw error;
+  return data as AssetType;
+}
+

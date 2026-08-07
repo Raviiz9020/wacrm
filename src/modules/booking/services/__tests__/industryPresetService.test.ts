@@ -3,6 +3,8 @@ import {
   getIndustryPresets,
   applyIndustryPreset,
   getActiveAssetType,
+  updateActiveAssetTypeSchema,
+  applyCustomIndustryPreset,
   INDUSTRY_PRESETS,
 } from '../industryPresetService';
 
@@ -71,4 +73,91 @@ describe('Industry Presets & Asset Schema Service', () => {
     expect(insertedRow.account_id).toBe('account-123');
     expect(insertedRow.schema_definition.preset_key).toBe('car_detailing');
   });
+
+  it('updates active asset type schema fields', async () => {
+    let updatedPayload: any = null;
+
+    const mockSupabase = {
+      from: (table: string) => {
+        expect(table).toBe('asset_types');
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: 'asset-type-1',
+                  account_id: 'account-123',
+                  name: 'Vehicle',
+                  schema_definition: { preset_key: 'car_detailing', fields: [] },
+                },
+                error: null,
+              }),
+            }),
+          }),
+          update: (payload: any) => {
+            updatedPayload = payload;
+            return {
+              eq: () => ({
+                select: () => ({
+                  single: async () => ({
+                    data: { id: 'asset-type-1', ...payload },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          },
+        };
+      },
+    };
+
+    const updatedFields = [{ key: 'serial', label: 'Serial ID', type: 'text' as const }];
+    const result = await updateActiveAssetTypeSchema('account-123', updatedFields, mockSupabase);
+
+    expect(result.id).toBe('asset-type-1');
+    expect(updatedPayload.schema_definition.fields).toEqual(updatedFields);
+  });
+
+  it('applies custom industry preset', async () => {
+    let upsertedPayload: any = null;
+
+    const mockSupabase = {
+      from: (table: string) => {
+        expect(table).toBe('asset_types');
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+          insert: (payload: any) => {
+            upsertedPayload = payload;
+            return {
+              select: () => ({
+                single: async () => ({
+                  data: { id: 'custom-asset-type', ...payload },
+                  error: null,
+                }),
+              }),
+            };
+          },
+        };
+      },
+    };
+
+    const input = {
+      industryName: 'Gym & Fitness',
+      assetName: 'Member Keycard',
+      description: 'Custom tracking card',
+      fields: [{ key: 'card_id', label: 'Card ID', type: 'text' as const, required: true }],
+    };
+
+    const result = await applyCustomIndustryPreset('account-123', input, mockSupabase);
+
+    expect(result.id).toBe('custom-asset-type');
+    expect(upsertedPayload.name).toBe('Member Keycard');
+    expect(upsertedPayload.schema_definition.preset_key).toBe('custom');
+    expect(upsertedPayload.schema_definition.preset_name).toBe('Gym & Fitness');
+  });
 });
+
