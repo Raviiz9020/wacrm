@@ -134,6 +134,7 @@
     "conversationList": {
       "searchPlaceholder": "Search conversations...",
       "filterAll": "All",
+      "filterAssignedToMe": "Assigned to Me",
       "filterUnread": "Unread",
       "filterOpen": "Open",
       "filterPending": "Pending",
@@ -356,13 +357,14 @@
     "detailView": {
       "tabs": {
         "details": "Details",
+        "tags": "Tags",
         "activity": "Activity",
         "notes": "Notes",
         "custom": "Custom Fields",
         "deals": "Deals",
-      "noTags": "No tags",
-      "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+        "noTags": "No tags",
+        "noDeals": "No deals",
+        "addNotePlaceholder": "Add a note..."
       },
       "actions": {
         "edit": "Edit",
@@ -372,6 +374,7 @@
       "contactInfo": "Contact Information",
       "unnamed": "Unknown",
       "contactDetailsDesc": "Contact details",
+      "name": "Name",
       "phone": "Phone",
       "email": "Email",
       "company": "Company",

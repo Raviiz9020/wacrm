@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
-import type { Contact, Tag, ContactTag } from '@/types';
+import type { Contact, Tag, ContactTag, CustomField } from '@/types';
 import {
   findExistingContact,
   isExactMatch,
@@ -56,6 +56,9 @@ export function ContactForm({
   const [company, setCompany] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+
   // Duplicate-phone detection for NEW contacts. `exact` (same digits)
   // hard-blocks the save; a fuzzy trunk-variant match only warns. The
   // DB unique index (migration 022) is the real backstop — this is the
@@ -78,8 +81,43 @@ export function ContactForm({
       setSelectedTagIds(contactTags.map((ct) => ct.tag_id));
       setDupMatch(null);
       fetchTags();
+      fetchCustomFieldsAndValues();
     }
   }, [open, contact]);
+
+  async function fetchCustomFieldsAndValues() {
+    try {
+      const { data: fields } = await supabase
+        .from('custom_fields')
+        .select('*')
+        .order('field_name');
+      
+      if (fields) {
+        setCustomFields(fields);
+      }
+
+      if (contact?.id) {
+        const { data: values } = await supabase
+          .from('contact_custom_values')
+          .select('*')
+          .eq('contact_id', contact.id);
+
+        if (values) {
+          const map: Record<string, string> = {};
+          values.forEach((v) => {
+            map[v.custom_field_id] = v.value ?? '';
+          });
+          setCustomValues(map);
+        } else {
+          setCustomValues({});
+        }
+      } else {
+        setCustomValues({});
+      }
+    } catch (err) {
+      console.error('Failed to load custom fields/values:', err);
+    }
+  }
 
   // Look up an existing contact with this number (new contacts only).
   // Runs on blur so we don't query on every keystroke.
@@ -175,6 +213,29 @@ export function ContactForm({
           .single();
         if (error) throw error;
         contactId = data.id;
+      }
+
+      // Sync custom fields values
+      if (contactId) {
+        await supabase
+          .from('contact_custom_values')
+          .delete()
+          .eq('contact_id', contactId);
+
+        const rows = Object.entries(customValues)
+          .filter(([, val]) => val.trim())
+          .map(([fieldId, val]) => ({
+            contact_id: contactId!,
+            custom_field_id: fieldId,
+            value: val.trim(),
+          }));
+
+        if (rows.length > 0) {
+          const { error: customError } = await supabase
+            .from('contact_custom_values')
+            .insert(rows);
+          if (customError) throw customError;
+        }
       }
 
       // Sync tags
@@ -343,6 +404,26 @@ export function ContactForm({
               className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
+
+          {customFields.map((field) => (
+            <div key={field.id} className="space-y-2">
+              <Label htmlFor={`cf-custom-${field.id}`} className="text-muted-foreground">
+                {field.field_name}
+              </Label>
+              <Input
+                id={`cf-custom-${field.id}`}
+                value={customValues[field.id] ?? ''}
+                onChange={(e) =>
+                  setCustomValues((prev) => ({
+                    ...prev,
+                    [field.id]: e.target.value,
+                  }))
+                }
+                placeholder={`Enter ${field.field_name}...`}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          ))}
 
           <div className="space-y-2">
             <Label className="text-muted-foreground">{t('tagsLabel')}</Label>

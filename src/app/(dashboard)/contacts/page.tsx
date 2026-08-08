@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import type { Contact, Tag, ContactTag } from '@/types';
+import type { Contact, Tag, ContactTag, CustomField } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -62,6 +62,7 @@ const PAGE_SIZE = 25;
 
 interface ContactWithTags extends Contact {
   tags?: Tag[];
+  customValues?: Record<string, string>;
 }
 
 export default function ContactsPage() {
@@ -71,6 +72,7 @@ export default function ContactsPage() {
   const canEditSettings = useCan('edit-settings');
 
   const [contacts, setContacts] = useState<ContactWithTags[]>([]);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -118,6 +120,16 @@ export default function ContactsPage() {
     }
   }, [supabase]);
 
+  const fetchCustomFields = useCallback(async () => {
+    const { data } = await supabase
+      .from('custom_fields')
+      .select('*')
+      .order('field_name');
+    if (data) {
+      setCustomFields(data);
+    }
+  }, [supabase]);
+
   const fetchContacts = useCallback(async () => {
     const seq = ++fetchSeq.current;
     setLoading(true);
@@ -127,54 +139,30 @@ export default function ContactsPage() {
     setSelected(new Set());
 
     const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
     const term = search.trim();
 
     let contactRows: Contact[];
     let count: number;
 
-    if (selectedTagIds.length > 0) {
-      // Tag filter active — resolve it server-side (join + distinct +
-      // windowed total count + pagination) so a tag covering many
-      // contacts can't silently truncate the result or overflow an IN
-      // clause. See migration 025_filter_contacts_by_tags.
-      const { data, error } = await supabase.rpc('filter_contacts_by_tags', {
-        p_tag_ids: selectedTagIds,
-        p_search: term || null,
-        p_limit: PAGE_SIZE,
-        p_offset: from,
-      });
-      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-      if (error) {
-        toast.error(t('toastFailedLoad'));
-        setLoading(false);
-        return;
-      }
-      const rows = (data ?? []) as { contact: Contact; total_count: number }[];
-      contactRows = rows.map((r) => r.contact);
-      count = rows.length > 0 ? Number(rows[0].total_count) : 0;
-    } else {
-      let query = supabase
-        .from('contacts')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
+    // Fetch contacts using the unified server-side search function.
+    // This searches standard columns and custom fields, and handles tag filtering.
+    const { data, error } = await supabase.rpc('search_contacts', {
+      p_search: term || null,
+      p_tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
+      p_limit: PAGE_SIZE,
+      p_offset: from,
+    });
 
-      if (term) {
-        const like = `%${term}%`;
-        query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`);
-      }
-
-      const { data, count: exactCount, error } = await query;
-      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-      if (error) {
-        toast.error(t('toastFailedLoad'));
-        setLoading(false);
-        return;
-      }
-      contactRows = data ?? [];
-      count = exactCount ?? 0;
+    if (seq !== fetchSeq.current) return; // superseded by a newer fetch
+    if (error) {
+      toast.error(t('toastFailedLoad'));
+      setLoading(false);
+      return;
     }
+
+    const rows = (data ?? []) as { contact: Contact; total_count: number }[];
+    contactRows = rows.map((r) => r.contact);
+    count = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
     setTotalCount(count);
 
@@ -184,13 +172,22 @@ export default function ContactsPage() {
       return;
     }
 
-    // Fetch tags for these contacts
+    // Fetch tags and custom values for these contacts
     const contactIds = contactRows.map((c) => c.id);
-    const { data: contactTags } = await supabase
-      .from('contact_tags')
-      .select('contact_id, tag_id')
-      .in('contact_id', contactIds);
+    const [contactTagsRes, customValuesRes] = await Promise.all([
+      supabase
+        .from('contact_tags')
+        .select('contact_id, tag_id')
+        .in('contact_id', contactIds),
+      supabase
+        .from('contact_custom_values')
+        .select('*')
+        .in('contact_id', contactIds),
+    ]);
     if (seq !== fetchSeq.current) return; // superseded by a newer fetch
+
+    const contactTags = contactTagsRes.data;
+    const customValues = customValuesRes.data;
 
     const tagsByContact: Record<string, string[]> = {};
     contactTags?.forEach((ct) => {
@@ -198,11 +195,18 @@ export default function ContactsPage() {
       tagsByContact[ct.contact_id].push(ct.tag_id);
     });
 
+    const valuesByContact: Record<string, Record<string, string>> = {};
+    customValues?.forEach((cv) => {
+      if (!valuesByContact[cv.contact_id]) valuesByContact[cv.contact_id] = {};
+      valuesByContact[cv.contact_id][cv.custom_field_id] = cv.value ?? '';
+    });
+
     const enriched: ContactWithTags[] = contactRows.map((c) => ({
       ...c,
       tags: (tagsByContact[c.id] ?? [])
         .map((tid) => tagsMap[tid])
         .filter(Boolean),
+      customValues: valuesByContact[c.id] ?? {},
     }));
 
     setContacts(enriched);
@@ -216,7 +220,8 @@ export default function ContactsPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTags();
-  }, [fetchTags]);
+    fetchCustomFields();
+  }, [fetchTags, fetchCustomFields]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -545,6 +550,11 @@ export default function ContactsPage() {
               <TableHead className="text-muted-foreground">{t('tableColumns.phone')}</TableHead>
               <TableHead className="text-muted-foreground hidden md:table-cell">{t('tableColumns.email')}</TableHead>
               <TableHead className="text-muted-foreground hidden lg:table-cell">{t('tableColumns.company')}</TableHead>
+              {customFields.map((field) => (
+                <TableHead key={field.id} className="text-muted-foreground hidden xl:table-cell">
+                  {field.field_name}
+                </TableHead>
+              ))}
               <TableHead className="text-muted-foreground hidden md:table-cell">{t('tableColumns.tags')}</TableHead>
               <TableHead className="text-muted-foreground hidden lg:table-cell">{t('tableColumns.createdAt')}</TableHead>
               <TableHead className="text-muted-foreground w-12" />
@@ -553,7 +563,7 @@ export default function ContactsPage() {
           <TableBody>
             {loading ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={8 + customFields.length} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="size-6 animate-spin text-primary" />
                     <p className="text-sm text-muted-foreground">{t('loading')}</p>
@@ -562,7 +572,7 @@ export default function ContactsPage() {
               </TableRow>
             ) : contacts.length === 0 ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={8 + customFields.length} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="size-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -612,6 +622,14 @@ export default function ContactsPage() {
                   <TableCell className="text-muted-foreground hidden lg:table-cell text-sm">
                     {contact.company || <span className="text-muted-foreground">-</span>}
                   </TableCell>
+                  {customFields.map((field) => {
+                    const val = contact.customValues?.[field.id];
+                    return (
+                      <TableCell key={field.id} className="text-muted-foreground hidden xl:table-cell text-sm">
+                        {val || <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                    );
+                  })}
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {contact.tags && contact.tags.length > 0 ? (

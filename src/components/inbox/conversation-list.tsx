@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -44,7 +45,7 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 
 
-type InboxFilter = ConversationStatus | "all" | "unread";
+type InboxFilter = ConversationStatus | "all" | "unread" | "assigned_to_me";
 
 export function ConversationList({
   activeConversationId,
@@ -54,14 +55,7 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  
-  const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
-    { label: t("filterAll"), value: "all" },
-    { label: t("filterUnread"), value: "unread" },
-    { label: t("filterOpen"), value: "open" },
-    { label: t("filterPending"), value: "pending" },
-    { label: t("filterClosed"), value: "closed" },
-  ], [t]);
+  const { user } = useAuth();
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
@@ -72,6 +66,20 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+
+  const assignedCount = useMemo(() => {
+    if (!user?.id) return 0;
+    return conversations.filter((c) => c.assigned_agent_id === user.id).length;
+  }, [conversations, user?.id]);
+
+  const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
+    { label: t("filterAll"), value: "all" },
+    { label: `${t("filterAssignedToMe")} (${assignedCount})`, value: "assigned_to_me" },
+    { label: t("filterUnread"), value: "unread" },
+    { label: t("filterOpen"), value: "open" },
+    { label: t("filterPending"), value: "pending" },
+    { label: t("filterClosed"), value: "closed" },
+  ], [t, assignedCount]);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -163,6 +171,8 @@ export function ConversationList({
 
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);
+    } else if (filter === "assigned_to_me") {
+      result = result.filter((c) => c.assigned_agent_id === user?.id);
     } else if (filter !== "all") {
       result = result.filter((c) => c.status === filter);
     }
