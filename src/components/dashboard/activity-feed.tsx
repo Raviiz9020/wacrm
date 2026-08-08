@@ -9,6 +9,7 @@ import {
   Radio,
   Zap,
   Inbox,
+  ArrowUpRight,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { ActivityItem, ActivityKind } from '@/lib/dashboard/types'
@@ -31,11 +32,11 @@ interface KindTheme {
 }
 
 const KIND_THEME: Record<ActivityKind, KindTheme> = {
-  message: { icon: MessageSquare, badge: 'bg-blue-500/10 text-blue-400' },
-  contact: { icon: UserPlus, badge: 'bg-primary/10 text-primary' },
-  deal: { icon: Briefcase, badge: 'bg-primary/10 text-primary' },
-  broadcast: { icon: Radio, badge: 'bg-amber-500/10 text-amber-400' },
-  automation: { icon: Zap, badge: 'bg-rose-500/10 text-rose-400' },
+  message: { icon: MessageSquare, badge: 'bg-blue-500/10 text-blue-500 dark:text-blue-400' },
+  contact: { icon: UserPlus, badge: 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' },
+  deal: { icon: Briefcase, badge: 'bg-amber-500/10 text-amber-500 dark:text-amber-400' },
+  broadcast: { icon: Radio, badge: 'bg-amber-500/10 text-amber-500 dark:text-amber-400' },
+  automation: { icon: Zap, badge: 'bg-rose-500/10 text-rose-500 dark:text-rose-400' },
 }
 
 import { useTranslations } from 'next-intl'
@@ -62,7 +63,7 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
         <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>
         <Link
           href="/inbox"
-          className="text-xs font-medium text-primary hover:text-primary/80"
+          className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
         >
           {t('viewAll')}
         </Link>
@@ -84,34 +85,39 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-border">
+          <ul className="relative divide-y divide-border/40 before:absolute before:left-[33px] before:top-6 before:bottom-6 before:w-[1.5px] before:bg-border/60 before:pointer-events-none">
             {visible.map((it, i) => {
               const theme = KIND_THEME[it.kind]
               const Icon = theme.icon
               // Alternating row background for scanability. bg-muted/40
               // keeps the stripe visible in both light and dark modes
               // (bg-card/40 vanishes against a white card surface in light).
-              const stripe = i % 2 === 0 ? 'bg-transparent' : 'bg-muted/40'
+              const stripe = i % 2 === 0 ? 'bg-transparent' : 'bg-muted/15'
               const row = (
-                <div className="flex items-center gap-3 px-5 py-2.5">
+                <div className="group/row flex items-center gap-3 px-5 py-2.5">
                   <span
                     className={cn(
-                      'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full',
+                      'relative z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full transition-transform duration-300 group-hover/row:scale-110',
                       theme.badge,
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground transition-colors group-hover/row:text-primary">
                     {it.text}
                   </span>
-                  <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {relativeTime(it.at, t)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-shrink-0 text-xs text-muted-foreground font-mono tabular-nums">
+                      {relativeTime(it.at, t)}
+                    </span>
+                    {it.href && (
+                      <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 -translate-x-1 translate-y-1 transition-all duration-300 group-hover/row:opacity-100 group-hover/row:translate-x-0 group-hover/row:translate-y-0" />
+                    )}
+                  </div>
                 </div>
               )
               return (
-                <li key={it.id} className={cn(stripe, 'transition-colors hover:bg-muted/40')}>
+                <li key={it.id} className={cn(stripe, 'transition-all duration-300 hover:bg-muted/30')}>
                   {it.href ? (
                     <Link href={it.href} className="block">
                       {row}

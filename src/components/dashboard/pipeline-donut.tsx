@@ -73,7 +73,7 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
   const t = useTranslations('Dashboard.pipelineDonut')
   const size = 200
   const r = 80
-  const ringWidth = 18
+  const ringWidth = 14
   const cx = size / 2
   const cy = size / 2
 
@@ -92,17 +92,23 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
   // "Cannot reassign variable after render completes" rule.
   const offsets: number[] = [0]
   for (let i = 0; i < shares.length; i++) offsets.push(offsets[i] + shares[i])
+  
+  // Calculate gap radians to allow rounded strokeLinecap without overlaps
+  const gapRad = 0.05
+  
   const segments = data.stages.map((s, i) => {
-    const start = offsets[i] * Math.PI * 2 - Math.PI / 2
-    const end = offsets[i + 1] * Math.PI * 2 - Math.PI / 2
-    return { path: arcPath(cx, cy, r, start, end), color: s.color, id: s.id }
+    const start = offsets[i] * Math.PI * 2 - Math.PI / 2 + gapRad
+    const end = offsets[i + 1] * Math.PI * 2 - Math.PI / 2 - gapRad
+    // Ensure finalEnd is always greater than start
+    const finalEnd = end > start ? end : start + 0.001
+    return { path: arcPath(cx, cy, r, start, finalEnd), color: s.color, id: s.id }
   })
 
   return (
     <div className="flex items-center justify-center">
       <svg viewBox={`0 0 ${size} ${size}`} className="h-48 w-48" role="img" aria-label={t('ariaLabel')}>
         {/* background ring */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--muted)" strokeWidth={ringWidth} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--muted)" strokeWidth={ringWidth} strokeOpacity={0.4} />
         {segments.map((seg) => (
           <path
             key={seg.id}
@@ -110,23 +116,23 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
             fill="none"
             stroke={seg.color}
             strokeWidth={ringWidth}
-            strokeLinecap="butt"
+            strokeLinecap="round"
           />
         ))}
         {/* center label */}
         <text
           x={cx}
-          y={cy - 6}
+          y={cy - 8}
           textAnchor="middle"
-          className="fill-muted-foreground text-[11px]"
+          className="fill-muted-foreground font-semibold text-[10px] uppercase tracking-widest"
         >
           {t('total')}
         </text>
         <text
           x={cx}
-          y={cy + 14}
+          y={cy + 12}
           textAnchor="middle"
-          className="fill-foreground text-[18px] font-semibold tabular-nums"
+          className="fill-foreground text-[20px] font-bold font-mono tracking-tight"
         >
           {formatCurrencyShort(data.totalValue, currency)}
         </text>

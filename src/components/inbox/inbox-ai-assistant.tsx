@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { getActiveAssetType } from "@/modules/booking/services/industryPresetService";
 
 interface Turn {
   role: "user" | "assistant";
@@ -27,12 +29,66 @@ interface InboxAiAssistantProps {
   resetRef?: React.MutableRefObject<(() => void) | null>;
 }
 
+const INDUSTRY_SUGGESTIONS: Record<string, string[]> = {
+  car_detailing: [
+    "How much is paint correction?",
+    "Pricing for full detail?",
+    "Can I book a ceramic coating?",
+  ],
+  garage: [
+    "How much is an oil change?",
+    "Appointment for brake check",
+    "Diagnostic fee details",
+  ],
+  dental_clinic: [
+    "Pricing for root canal?",
+    "What's our refund policy?",
+    "Appointment rescheduling",
+  ],
+  real_estate: [
+    "Price per square foot?",
+    "Request home maintenance info",
+    "Book a property viewing",
+  ],
+  salon_spa: [
+    "Price for hair coloring?",
+    "Do you do hot stone massage?",
+    "Skin sensitivity policy",
+  ],
+  default: [
+    "What's our refund policy?",
+    "What are our business hours?",
+    "Appointment rescheduling",
+  ],
+};
+
 export function InboxAiAssistant({ conversationKey, onReset, resetRef }: InboxAiAssistantProps) {
+  const { accountId } = useAuth();
+  const [presetKey, setPresetKey] = useState<string>('default');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch active industry preset to customize suggestions
+  useEffect(() => {
+    if (!accountId) return;
+    getActiveAssetType(accountId)
+      .then((assetType) => {
+        if (assetType && assetType.schema_definition) {
+          const key = (assetType.schema_definition as any).preset_key;
+          if (key && INDUSTRY_SUGGESTIONS[key]) {
+            setPresetKey(key);
+          } else {
+            setPresetKey('default');
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load active asset type schema:", err);
+      });
+  }, [accountId]);
 
   // Reset session whenever the active conversation changes
   useEffect(() => {
@@ -147,11 +203,7 @@ export function InboxAiAssistant({ conversationKey, onReset, resetRef }: InboxAi
               Get instant answers to help you respond to this customer.
             </p>
             <div className="mt-1 flex flex-wrap justify-center gap-1">
-              {[
-                "What's our refund policy?",
-                "Pricing for root canal?",
-                "Appointment rescheduling",
-              ].map((suggestion) => (
+              {(INDUSTRY_SUGGESTIONS[presetKey] || INDUSTRY_SUGGESTIONS.default).map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => {

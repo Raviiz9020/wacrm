@@ -112,10 +112,7 @@ function LineSvg({
   t: ReturnType<typeof useTranslations>
 }) {
   // Hover state: both the snapped index AND the tooltip's pixel
-  // offset inside the wrapper div. They're stored together so the
-  // tooltip positions against the chart's actual rendered pixels,
-  // not against a raw viewBox percentage. See the precision note on
-  // the onMove handler below.
+  // offset inside the wrapper div.
   const [hover, setHover] = useState<{ idx: number; tooltipLeftPx: number } | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -123,35 +120,55 @@ function LineSvg({
   const chartW = VB_W - PADDING.left - PADDING.right
   const chartH = VB_H - PADDING.top - PADDING.bottom
 
-  // x step can be fractional for 90-day views; points are positioned
-  // at the center of each "slot" so the first and last points don't
-  // sit right on the axis.
+  // x step can be fractional for 90-day views
   const stepX = data.length > 1 ? chartW / (data.length - 1) : 0
   const yFor = (v: number) =>
     maxY === 0 ? PADDING.top + chartH : PADDING.top + chartH - (v / maxY) * chartH
   const xFor = (i: number) => PADDING.left + i * stepX
 
-  const incomingPath = data.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i)},${yFor(p.incoming)}`).join(' ')
-  const outgoingPath = data.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i)},${yFor(p.outgoing)}`).join(' ')
+  // Create point list to calculate paths
+  const incomingPoints = data.map((p, i) => ({ x: xFor(i), y: yFor(p.incoming) }))
+  const outgoingPoints = data.map((p, i) => ({ x: xFor(i), y: yFor(p.outgoing) }))
 
-  // Mouse-move: use the SVG's current screen-CTM to map clientX
-  // back to viewBox coordinates. The previous rect-based math
-  // assumed the viewBox filled the SVG DOM box linearly, but
-  // `preserveAspectRatio="xMidYMid meet"` (the SVG default)
-  // letterboxes the content horizontally when the container is
-  // wider than the viewBox aspect — so hover snapped hundreds of
-  // pixels off on wide layouts. CTM-inverse correctly accounts for
-  // letterboxing, scaling, and any future transform changes.
+  // Helper to generate a smooth bezier curve path
+  const smoothPath = (pts: { x: number; y: number }[]): string => {
+    if (pts.length === 0) return ''
+    let d = `M ${pts[0].x} ${pts[0].y}`
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i]
+      const p1 = pts[i + 1]
+      const cpX1 = p0.x + (p1.x - p0.x) / 3
+      const cpY1 = p0.y
+      const cpX2 = p1.x - (p1.x - p0.x) / 3
+      const cpY2 = p1.y
+      d += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`
+    }
+    return d
+  }
+
+  const incomingSpline = smoothPath(incomingPoints)
+  const outgoingSpline = smoothPath(outgoingPoints)
+
+  const bottomY = PADDING.top + chartH
+  const incomingArea = incomingPoints.length > 0 
+    ? `${incomingSpline} L ${incomingPoints[incomingPoints.length - 1].x} ${bottomY} L ${incomingPoints[0].x} ${bottomY} Z`
+    : ''
+  const outgoingArea = outgoingPoints.length > 0 
+    ? `${outgoingSpline} L ${outgoingPoints[outgoingPoints.length - 1].x} ${bottomY} L ${outgoingPoints[0].x} ${bottomY} Z`
+    : ''
+
+  // Mouse & Touch Move event handlers
   useEffect(() => {
     const svg = svgRef.current
     const wrap = wrapRef.current
     if (!svg || !wrap) return
-    const onMove = (e: MouseEvent) => {
+
+    const onMove = (clientX: number, clientY: number) => {
       const ctm = svg.getScreenCTM()
       if (!ctm) return
       const pt = svg.createSVGPoint()
-      pt.x = e.clientX
-      pt.y = e.clientY
+      pt.x = clientX
+      pt.y = clientY
       const local = pt.matrixTransform(ctm.inverse())
       const xVb = local.x
       if (xVb < PADDING.left - 8 || xVb > VB_W - PADDING.right + 8) {
@@ -163,11 +180,6 @@ function LineSvg({
         0,
         Math.min(data.length - 1, Math.round(stepX === 0 ? 0 : relative / stepX)),
       )
-      // Map the snapped data-point's viewBox x back to screen, then
-      // subtract the wrapper's left edge — that pixel offset is what
-      // the absolutely-positioned tooltip div consumes. `xFor` is
-      // inlined here so the effect deps stay stable (it's a closure
-      // that'd otherwise be a new reference every render).
       const dataPointVbX = PADDING.left + idx * stepX
       const dataPointPt = svg.createSVGPoint()
       dataPointPt.x = dataPointVbX
@@ -176,21 +188,44 @@ function LineSvg({
       const wrapRect = wrap.getBoundingClientRect()
       setHover({ idx, tooltipLeftPx: screen.x - wrapRect.left })
     }
-    const onLeave = () => setHover(null)
-    svg.addEventListener('mousemove', onMove)
-    svg.addEventListener('mouseleave', onLeave)
-    return () => {
-      svg.removeEventListener('mousemove', onMove)
-      svg.removeEventListener('mouseleave', onLeave)
+
+    const onMouseMove = (e: MouseEvent) => {
+      onMove(e.clientX, e.clientY)
     }
-    // xFor + yFor close over stepX, so stepX covers them.
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return
+      const touch = e.touches[0]
+      onMove(touch.clientX, touch.clientY)
+      // Prevent mobile drag-scrolling only if scrubbing the active chart zone
+      if (e.cancelable) {
+        e.preventDefault()
+      }
+    }
+
+    const onLeave = () => setHover(null)
+
+    svg.addEventListener('mousemove', onMouseMove)
+    svg.addEventListener('mouseleave', onLeave)
+    svg.addEventListener('touchstart', onTouchMove, { passive: true })
+    svg.addEventListener('touchmove', onTouchMove, { passive: false })
+    svg.addEventListener('touchend', onLeave)
+    svg.addEventListener('touchcancel', onLeave)
+
+    return () => {
+      svg.removeEventListener('mousemove', onMouseMove)
+      svg.removeEventListener('mouseleave', onLeave)
+      svg.removeEventListener('touchstart', onTouchMove)
+      svg.removeEventListener('touchmove', onTouchMove)
+      svg.removeEventListener('touchend', onLeave)
+      svg.removeEventListener('touchcancel', onLeave)
+    }
   }, [data, stepX])
 
   const hovered = hover !== null ? data[hover.idx] : null
   const hoverX = hover !== null ? xFor(hover.idx) : 0
 
-  // X-axis label strategy: show ~6 evenly-spaced labels regardless
-  // of range so the axis never looks crowded.
+  // X-axis label strategy: show ~6 evenly-spaced labels
   const labelStride = Math.max(1, Math.ceil(data.length / 6))
 
   return (
@@ -202,6 +237,17 @@ function LineSvg({
         role="img"
         aria-label={t('ariaLabel')}
       >
+        <defs>
+          <linearGradient id="incoming-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2"/>
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0"/>
+          </linearGradient>
+          <linearGradient id="outgoing-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.2"/>
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.0"/>
+          </linearGradient>
+        </defs>
+
         {/* Y-axis gridlines + labels */}
         {ticks.map((t) => {
           const y = yFor(t)
@@ -220,7 +266,7 @@ function LineSvg({
                 y={y}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground font-mono text-[10px]"
               >
                 {t}
               </text>
@@ -236,25 +282,33 @@ function LineSvg({
               x={xFor(i)}
               y={VB_H - 8}
               textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground font-mono text-[10px]"
             >
               {shortDayLabel(p.day)}
             </text>
           ) : null,
         )}
 
-        {/* Outgoing polyline (violet) */}
+        {/* Areas */}
+        {incomingArea && (
+          <path d={incomingArea} fill="url(#incoming-grad)" />
+        )}
+        {outgoingArea && (
+          <path d={outgoingArea} fill="url(#outgoing-grad)" />
+        )}
+
+        {/* Outgoing spline */}
         <path
-          d={outgoingPath}
+          d={outgoingSpline}
           fill="none"
           stroke="#7c3aed"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Incoming polyline (blue) */}
+        {/* Incoming spline */}
         <path
-          d={incomingPath}
+          d={incomingSpline}
           fill="none"
           stroke="#3b82f6"
           strokeWidth={2}
@@ -270,31 +324,33 @@ function LineSvg({
               x2={hoverX}
               y1={PADDING.top}
               y2={PADDING.top + chartH}
-              stroke="var(--muted-foreground)"
+              stroke="var(--border)"
+              strokeWidth={1.5}
               strokeDasharray="3 3"
             />
-            <circle cx={hoverX} cy={yFor(data[hover.idx].incoming)} r={3.5} fill="#3b82f6" />
-            <circle cx={hoverX} cy={yFor(data[hover.idx].outgoing)} r={3.5} fill="#7c3aed" />
+            {/* Incoming point glow */}
+            <circle cx={hoverX} cy={yFor(data[hover.idx].incoming)} r={6} fill="#3b82f6" fillOpacity={0.2} />
+            <circle cx={hoverX} cy={yFor(data[hover.idx].incoming)} r={3} fill="#3b82f6" stroke="#ffffff" strokeWidth={1} />
+            {/* Outgoing point glow */}
+            <circle cx={hoverX} cy={yFor(data[hover.idx].outgoing)} r={6} fill="#7c3aed" fillOpacity={0.2} />
+            <circle cx={hoverX} cy={yFor(data[hover.idx].outgoing)} r={3} fill="#7c3aed" stroke="#ffffff" strokeWidth={1} />
           </g>
         )}
       </svg>
 
-      {/* Tooltip — absolute-positioned div so we get crisp text, not
-          SVG-rendered text. The left offset comes from the CTM-based
-          mapping so it lines up with the actual crosshair pixel, not a
-          letterboxed viewBox percentage. */}
+      {/* Tooltip — glassmorphic overlay absolute positioning */}
       {hovered && hover !== null && (
         <div
-          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-md border border-border bg-popover px-2.5 py-1.5 text-[11px] shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg border border-border/80 bg-popover/85 backdrop-blur-md px-3 py-2 text-[11px] shadow-2xl transition-all duration-150"
           style={{ left: `${hover.tooltipLeftPx}px` }}
         >
-          <div className="font-medium text-popover-foreground">{longDayLabel(hovered.day)}</div>
-          <div className="mt-1 flex flex-col gap-0.5">
-            <span className="flex items-center gap-1.5 text-blue-300">
+          <div className="font-semibold text-popover-foreground tracking-tight border-b border-border/40 pb-1 mb-1">{longDayLabel(hovered.day)}</div>
+          <div className="mt-1 flex flex-col gap-1">
+            <span className="flex items-center gap-1.5 font-medium text-blue-600 dark:text-blue-400">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
               {t('tooltipIncoming', { count: hovered.incoming })}
             </span>
-            <span className="flex items-center gap-1.5 text-primary">
+            <span className="flex items-center gap-1.5 font-medium text-primary">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
               {t('tooltipOutgoing', { count: hovered.outgoing })}
             </span>
