@@ -85,13 +85,27 @@ export function BrowserNotificationsCard({ className }: { className?: string }) 
   };
 
   const sendTest = () => {
+    if (typeof Notification === 'undefined') {
+      toast.error(t('unsupported'));
+      return;
+    }
+    if (Notification.permission !== 'granted') {
+      toast.error(t('statusDenied'), { description: t('deniedHint') });
+      return;
+    }
     try {
-      new Notification(t('testTitle'), {
+      const notif = new Notification(t('testTitle'), {
         body: t('testBody'),
         icon: '/icon',
         tag: 'wacrm-test-notification',
       });
-    } catch {
+      notif.onerror = (err) => {
+        console.error('Notification display error:', err);
+        toast.error('Notification dispatched, but blocked by OS. Check macOS System Settings → Notifications → your browser.');
+      };
+      toast.success('Test notification sent! Check your notification banner / top-right Mac notification center.');
+    } catch (err) {
+      console.error('Test notification failed:', err);
       toast.error(t('unsupported'));
     }
   };
