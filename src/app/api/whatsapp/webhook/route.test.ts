@@ -17,6 +17,9 @@ const h = vi.hoisted(() => ({
     afterCallbacks: [] as (() => Promise<void> | void)[],
     automationStarted: 0,
     automationCompleted: 0,
+    messageUpdates: [] as Record<string, unknown>[],
+    broadcastRecipient: null as { id: string; status: string } | null,
+    recipientUpdates: [] as Record<string, unknown>[],
   },
 }))
 
@@ -67,7 +70,6 @@ vi.mock('@supabase/supabase-js', () => ({
             }),
           }
         case 'broadcast_recipients':
-          // flagBroadcastReplyIfAny: select().eq().eq().in().order().limit()
           return {
             select: () => ({
               eq: () => ({
@@ -79,8 +81,17 @@ vi.mock('@supabase/supabase-js', () => ({
                     }),
                   }),
                 }),
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: h.state.broadcastRecipient,
+                    error: null,
+                  }),
               }),
             }),
+            update: (patch: Record<string, unknown>) => {
+              h.state.recipientUpdates.push(patch)
+              return { eq: () => Promise.resolve({ error: null }) }
+            },
           }
         case 'messages':
           return {
@@ -92,8 +103,17 @@ vi.mock('@supabase/supabase-js', () => ({
                     count: h.state.priorCustomerMsgCount,
                     error: null,
                   }),
+                limit: () => ({
+                  maybeSingle: () =>
+                    Promise.resolve({ data: null, error: null }),
+                }),
               }),
             }),
+            // Status webhook mirror (#535): update(...).eq('message_id', ...)
+            update: (patch: Record<string, unknown>) => {
+              h.state.messageUpdates.push(patch)
+              return { eq: () => Promise.resolve({ error: null }) }
+            },
             // Idempotent insert: upsert(...).select('id')
             upsert: (row: Record<string, unknown>, options: unknown) => {
               h.state.upsertCalls.push({ row, options })
@@ -200,6 +220,30 @@ async function runWebhook() {
   return res
 }
 
+async function runStatusWebhook(status: Record<string, unknown>) {
+  const body = {
+    entry: [
+      {
+        changes: [
+          {
+            field: 'messages',
+            value: {
+              metadata: { phone_number_id: 'pn-1' },
+              statuses: [status],
+            },
+          },
+        ],
+      },
+    ],
+  }
+  const res = await POST({
+    text: async () => JSON.stringify(body),
+    headers: { get: () => 'sha256=stub' },
+  } as unknown as Request)
+  for (const cb of h.state.afterCallbacks) await cb()
+  return res
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   h.state.messageUpsertResult = [{ id: 'msg-1' }]
@@ -210,6 +254,9 @@ beforeEach(() => {
   h.state.afterCallbacks = []
   h.state.automationStarted = 0
   h.state.automationCompleted = 0
+  h.state.messageUpdates = []
+  h.state.broadcastRecipient = null
+  h.state.recipientUpdates = []
   h.dispatchInboundToFlows.mockResolvedValue({ consumed: false })
   h.dispatchInboundToAiReply.mockResolvedValue(undefined)
   h.dispatchWebhookEvent.mockResolvedValue(undefined)
@@ -228,27 +275,22 @@ describe('inbound webhook: idempotent insert (#367)', () => {
   it('a genuine first delivery persists once and fans out downstream', async () => {
     await runWebhook()
 
-    // Inserted via upsert with the (conversation_id, message_id) conflict
-    // target — not a bare insert.
     expect(h.state.upsertCalls).toHaveLength(1)
     expect(h.state.upsertCalls[0].options).toMatchObject({
       onConflict: 'conversation_id,message_id',
       ignoreDuplicates: true,
     })
-    // Downstream side effects ran exactly once.
     expect(h.state.rpcCalls).toHaveLength(1)
     expect(h.dispatchInboundToFlows).toHaveBeenCalledTimes(1)
     expect(h.dispatchWebhookEvent).toHaveBeenCalledTimes(1)
   })
 
   it('a replayed delivery is a no-op: no unread bump, no fan-out', async () => {
-    // Upsert hits the unique index and returns no row.
     h.state.messageUpsertResult = []
 
     await runWebhook()
 
     expect(h.state.upsertCalls).toHaveLength(1)
-    // None of the downstream side effects fire on a replay.
     expect(h.state.rpcCalls).toHaveLength(0)
     expect(h.dispatchInboundToFlows).not.toHaveBeenCalled()
     expect(h.runAutomationsForTrigger).not.toHaveBeenCalled()
@@ -273,10 +315,109 @@ describe('inbound webhook: after() awaits automations (#368)', () => {
   it('every triggered automation settles before the after() callback resolves', async () => {
     await runWebhook()
 
-    // first_inbound_message + new_message_received + keyword_match.
     expect(h.state.automationStarted).toBe(3)
-    // If the dispatches were fire-and-forget, completed would still be 0
-    // here — the callback would have resolved before the timers fired.
     expect(h.state.automationCompleted).toBe(3)
+  })
+})
+
+describe('status webhook: failed statuses keep Meta\'s reason (#535)', () => {
+  const FAILED_STATUS = {
+    id: 'wamid.OUT1',
+    status: 'failed',
+    timestamp: '1700000100',
+    recipient_id: '15551230000',
+    errors: [
+      {
+        code: 131049,
+        title: 'This message was not delivered to maintain healthy ecosystem engagement.',
+        message: 'This message was not delivered to maintain healthy ecosystem engagement.',
+        error_data: {
+          details:
+            'In order to maintain a healthy ecosystem engagement, the message failed to be delivered.',
+        },
+        href: 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/',
+      },
+    ],
+  }
+
+  it('persists code, title and details on the messages row in the same update as status', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await runStatusWebhook(FAILED_STATUS)
+    } finally {
+      warn.mockRestore()
+    }
+
+    expect(h.state.messageUpdates).toHaveLength(1)
+    expect(h.state.messageUpdates[0]).toEqual({
+      status: 'failed',
+      error_code: 131049,
+      error_title: FAILED_STATUS.errors[0].title,
+      error_details: FAILED_STATUS.errors[0].error_data.details,
+    })
+  })
+
+  it('logs one warning line carrying the wamid, code and title', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await runStatusWebhook(FAILED_STATUS)
+      expect(warn).toHaveBeenCalledTimes(1)
+      const line = String(warn.mock.calls[0][0])
+      expect(line).toContain('wamid.OUT1')
+      expect(line).toContain('131049')
+      expect(line).toContain(FAILED_STATUS.errors[0].title)
+      expect(line).toContain(FAILED_STATUS.errors[0].error_data.details)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('folds the reason into broadcast_recipients.error_message', async () => {
+    h.state.broadcastRecipient = { id: 'rec-1', status: 'sent' }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await runStatusWebhook(FAILED_STATUS)
+    } finally {
+      warn.mockRestore()
+    }
+
+    expect(h.state.recipientUpdates).toHaveLength(1)
+    expect(h.state.recipientUpdates[0].status).toBe('failed')
+    const reason = String(h.state.recipientUpdates[0].error_message)
+    expect(reason).toContain('131049')
+    expect(reason).toContain(FAILED_STATUS.errors[0].title)
+    expect(reason).toContain(FAILED_STATUS.errors[0].error_data.details)
+  })
+
+  it('a failed status with no errors array still flips status and stores no reason', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await runStatusWebhook({ ...FAILED_STATUS, errors: undefined })
+    } finally {
+      warn.mockRestore()
+    }
+    expect(warn).not.toHaveBeenCalled()
+    expect(h.state.messageUpdates).toEqual([{ status: 'failed' }])
+  })
+
+  it('a plain delivered status updates only status — error columns untouched', async () => {
+    h.state.broadcastRecipient = { id: 'rec-1', status: 'sent' }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await runStatusWebhook({
+        id: 'wamid.OUT1',
+        status: 'delivered',
+        timestamp: '1700000100',
+        recipient_id: '15551230000',
+      })
+    } finally {
+      warn.mockRestore()
+    }
+
+    expect(warn).not.toHaveBeenCalled()
+    expect(h.state.messageUpdates).toEqual([{ status: 'delivered' }])
+    expect(h.state.recipientUpdates).toHaveLength(1)
+    expect(h.state.recipientUpdates[0]).not.toHaveProperty('error_message')
+    expect(h.state.recipientUpdates[0]).not.toHaveProperty('error_code')
   })
 })
