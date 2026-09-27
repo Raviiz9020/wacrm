@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   generateReply: vi.fn(),
   engineSendText: vi.fn(),
   engineSendMedia: vi.fn(),
+  loadAccountMetaCredentials: vi.fn(),
+  sendTypingIndicator: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
     autoResponders: [] as { id: string }[],
@@ -25,6 +27,10 @@ vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({
   engineSendText: h.engineSendText,
   engineSendMedia: h.engineSendMedia,
+  loadAccountMetaCredentials: h.loadAccountMetaCredentials,
+}))
+vi.mock('@/lib/whatsapp/meta-api', () => ({
+  sendTypingIndicator: h.sendTypingIndicator,
 }))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
@@ -91,6 +97,7 @@ const ARGS = {
   conversationId: 'conv-1',
   contactId: 'contact-1',
   configOwnerUserId: 'user-1',
+  inboundMessageId: 'wamid.inbound-1',
 }
 
 function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
@@ -123,6 +130,11 @@ beforeEach(() => {
   h.retrieveKnowledge.mockResolvedValue([])
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
   h.engineSendText.mockResolvedValue({ whatsapp_message_id: 'm1' })
+  h.loadAccountMetaCredentials.mockResolvedValue({
+    phoneNumberId: 'pn-1',
+    accessToken: 'tok',
+  })
+  h.sendTypingIndicator.mockResolvedValue(undefined)
 })
 
 describe('dispatchInboundToAiReply — eligibility gates', () => {
@@ -294,5 +306,69 @@ describe('dispatchInboundToAiReply — handoff', () => {
       assigned_agent_id: 'agent-7',
       status: 'pending',
     })
+  })
+})
+
+describe('dispatchInboundToAiReply — typing indicator (#527)', () => {
+  it('shows "typing…" on the inbound wamid before calling the LLM', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.loadAccountMetaCredentials).toHaveBeenCalledWith(
+      expect.anything(),
+      'acct-1',
+    )
+    expect(h.sendTypingIndicator).toHaveBeenCalledTimes(1)
+    expect(h.sendTypingIndicator).toHaveBeenCalledWith({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      messageId: 'wamid.inbound-1',
+    })
+    // Ordering: the indicator goes out while the customer waits on the
+    // model, not after the reply is already generated.
+    const typingOrder = h.sendTypingIndicator.mock.invocationCallOrder[0]
+    const llmOrder = h.generateReply.mock.invocationCallOrder[0]
+    expect(typingOrder).toBeLessThan(llmOrder)
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+  })
+
+  it('still sends the reply when the indicator request fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.sendTypingIndicator.mockRejectedValue(new Error('Meta API error: 400'))
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.generateReply).toHaveBeenCalledTimes(1)
+    expect(h.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-1', text: 'Hello!' }),
+    )
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('typing indicator failed'),
+      expect.any(Error),
+    )
+    warn.mockRestore()
+  })
+
+  it('still sends the reply when the WhatsApp credentials cannot be loaded', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.loadAccountMetaCredentials.mockRejectedValue(
+      new Error('WhatsApp not configured for this account'),
+    )
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.sendTypingIndicator).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('skips the indicator when no inbound wamid is supplied', async () => {
+    const { inboundMessageId: _omit, ...legacyArgs } = ARGS
+    void _omit
+    await dispatchInboundToAiReply(legacyArgs)
+    expect(h.sendTypingIndicator).not.toHaveBeenCalled()
+    expect(h.loadAccountMetaCredentials).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire when a gate short-circuits before the LLM', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ autoReplyEnabled: false }))
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.sendTypingIndicator).not.toHaveBeenCalled()
+    expect(h.loadAccountMetaCredentials).not.toHaveBeenCalled()
   })
 })
