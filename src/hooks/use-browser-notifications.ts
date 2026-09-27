@@ -51,22 +51,40 @@ export function useBrowserNotifyPref(): boolean {
 export function useBrowserNotifications(): void {
   const enabled = useBrowserNotifyPref();
   const router = useRouter();
-  const t = useTranslations("Settings.browserNotifications.labels");
+  const t = useTranslations();
 
   // Translated labels, read inside the async Realtime callback. Kept in
   // a ref (assigned in an effect, not during render) so a locale change
   // doesn't tear down and re-open the channel.
   const labelsRef = useRef<NotificationLabels>(DEFAULT_NOTIFICATION_LABELS);
   useEffect(() => {
-    labelsRef.current = {
-      fallbackTitle: t("fallbackTitle"),
-      image: t("image"),
-      audio: t("audio"),
-      video: t("video"),
-      document: t("document"),
-      location: t("location"),
-      template: t("template"),
-    };
+    try {
+      labelsRef.current = {
+        fallbackTitle: t.has("Settings.browserNotifications.labels.fallbackTitle")
+          ? t("Settings.browserNotifications.labels.fallbackTitle")
+          : DEFAULT_NOTIFICATION_LABELS.fallbackTitle,
+        image: t.has("Settings.browserNotifications.labels.image")
+          ? t("Settings.browserNotifications.labels.image")
+          : DEFAULT_NOTIFICATION_LABELS.image,
+        audio: t.has("Settings.browserNotifications.labels.audio")
+          ? t("Settings.browserNotifications.labels.audio")
+          : DEFAULT_NOTIFICATION_LABELS.audio,
+        video: t.has("Settings.browserNotifications.labels.video")
+          ? t("Settings.browserNotifications.labels.video")
+          : DEFAULT_NOTIFICATION_LABELS.video,
+        document: t.has("Settings.browserNotifications.labels.document")
+          ? t("Settings.browserNotifications.labels.document")
+          : DEFAULT_NOTIFICATION_LABELS.document,
+        location: t.has("Settings.browserNotifications.labels.location")
+          ? t("Settings.browserNotifications.labels.location")
+          : DEFAULT_NOTIFICATION_LABELS.location,
+        template: t.has("Settings.browserNotifications.labels.template")
+          ? t("Settings.browserNotifications.labels.template")
+          : DEFAULT_NOTIFICATION_LABELS.template,
+      };
+    } catch {
+      labelsRef.current = DEFAULT_NOTIFICATION_LABELS;
+    }
   });
 
   // Message ids already handled, for replay dedupe. Survives re-renders,
