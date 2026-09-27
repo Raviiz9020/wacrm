@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { SettingsPanelHead } from './settings-panel-head';
 import {
   Accordion,
@@ -55,6 +56,8 @@ export function WhatsAppConfig() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unknown');
   const [resetReason, setResetReason] = useState<ResetReason>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [mirrorMedia, setMirrorMedia] = useState(true);
+  const [savingMirror, setSavingMirror] = useState(false);
   // Guards against re-hydrating the form when the load effect below
   // re-runs for reasons unrelated to actually switching accounts —
   // e.g. Supabase's onAuthStateChange fires a token refresh (new
@@ -121,6 +124,7 @@ export function WhatsAppConfig() {
         setVerifyToken('');
         setPin('');
         setTokenEdited(false);
+        setMirrorMedia(data.mirror_inbound_media !== false);
       } else {
         setConfig(null);
         setPhoneNumberId('');
@@ -130,6 +134,7 @@ export function WhatsAppConfig() {
         setVerifyToken('');
         setPin('');
         setTokenEdited(false);
+        setMirrorMedia(true);
       }
       // Clear any stale probe result when reloading the row.
       setRegistrationProbe(null);
@@ -182,6 +187,27 @@ export function WhatsAppConfig() {
     loadedAccountIdRef.current = accountId;
     fetchConfig(accountId);
   }, [authLoading, profileLoading, user?.id, accountId, fetchConfig]);
+
+  async function handleToggleMirrorMedia(next: boolean) {
+    if (!config || !accountId || savingMirror) return;
+    const previous = mirrorMedia;
+    setMirrorMedia(next);
+    setSavingMirror(true);
+    try {
+      const { error } = await supabase
+        .from('whatsapp_config')
+        .update({ mirror_inbound_media: next })
+        .eq('account_id', accountId);
+      if (error) throw new Error(error.message);
+      setConfig({ ...config, mirror_inbound_media: next });
+    } catch (error) {
+      console.error('Failed to update media retention setting:', error);
+      setMirrorMedia(previous);
+      toast.error(t('mirrorInboundSaveFailed'));
+    } finally {
+      setSavingMirror(false);
+    }
+  }
 
   async function handleSave() {
     if (!phoneNumberId.trim()) {
@@ -719,6 +745,41 @@ export function WhatsAppConfig() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Attachment retention */}
+        {config && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">{t('mediaTitle')}</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {t('mediaDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t('mirrorInbound')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('mirrorInboundDesc')}
+                  </p>
+                  {!mirrorMedia && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                      {t('mirrorInboundOffWarning')}
+                    </p>
+                  )}
+                </div>
+                <Switch
+                  checked={mirrorMedia}
+                  onCheckedChange={handleToggleMirrorMedia}
+                  disabled={savingMirror || !canEditSettings}
+                  aria-label={t('mirrorInbound')}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
