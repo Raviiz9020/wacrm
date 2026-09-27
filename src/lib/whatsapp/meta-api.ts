@@ -1054,7 +1054,7 @@ export interface GetMediaUrlArgs {
  */
 export async function getMediaUrl(
   args: GetMediaUrlArgs
-): Promise<{ url: string; mimeType: string }> {
+): Promise<{ url: string; mimeType: string; fileSize: number | null }> {
   const { mediaId, accessToken } = args
   const response = await fetch(`${META_API_BASE}/${mediaId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -1064,7 +1064,14 @@ export async function getMediaUrl(
   }
   const data = await response.json()
   if (!data.url) throw new Error('Media URL not found in Meta response')
-  return { url: data.url, mimeType: data.mime_type || 'application/octet-stream' }
+  // Meta documents file_size as a number but has been observed sending
+  // it as a numeric string; Number() handles both and NaN-guards junk.
+  const size = Number(data.file_size)
+  return {
+    url: data.url,
+    mimeType: data.mime_type || 'application/octet-stream',
+    fileSize: Number.isFinite(size) && size >= 0 ? size : null,
+  }
 }
 
 export interface DownloadMediaArgs {
