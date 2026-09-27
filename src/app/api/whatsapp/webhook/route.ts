@@ -670,38 +670,68 @@ async function processMessage(
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
-  const { error: msgError } = await supabaseAdmin().from('messages').insert({
-    conversation_id: conversation.id,
-    sender_type: 'customer',
-    content_type: contentType,
-    content_text: contentText,
-    media_url: mediaUrl,
-    media_type: mediaType,
-    message_id: message.id,
-    status: 'delivered',
-    created_at: new Date(parseInt(message.timestamp) * 1000).toISOString(),
-    reply_to_message_id: replyToInternalId,
-    // Only populated for content_type='interactive'. Migration 010 added
-    // the column; null for every other content_type so existing inserts
-    // behave identically.
-    interactive_reply_id: interactiveReplyId,
-  })
+  // Idempotent insert. Meta retries webhook deliveries (a slow ack, a
+  // transient 5xx), and each retry replays the exact same message.id. The
+  // unique index on (conversation_id, message_id) added in migration 044
+  // makes a replay conflict; `ignoreDuplicates` turns that into an ON
+  // CONFLICT DO NOTHING, and the `.select()` then returns the inserted row
+  // ONLY on a genuine first insert — an empty result means this delivery
+  // was a replay. This is the single idempotency boundary that must sit
+  // BEFORE the unread bump and all downstream fan-out below (issue #367).
+  const { data: insertedRows, error: msgError } = await supabaseAdmin()
+    .from('messages')
+    .upsert(
+      {
+        conversation_id: conversation.id,
+        sender_type: 'customer',
+        content_type: contentType,
+        content_text: contentText,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        message_id: message.id,
+        status: 'delivered',
+        created_at: new Date(parseInt(message.timestamp) * 1000).toISOString(),
+        reply_to_message_id: replyToInternalId,
+        // Only populated for content_type='interactive'. Migration 010 added
+        // the column; null for every other content_type so existing inserts
+        // behave identically.
+        interactive_reply_id: interactiveReplyId,
+      },
+      { onConflict: 'conversation_id,message_id', ignoreDuplicates: true }
+    )
+    .select('id')
 
   if (msgError) {
     console.error('Error inserting message:', msgError)
     return
   }
 
-  // Update conversation
-  const { error: convError } = await supabaseAdmin()
-    .from('conversations')
-    .update({
-      last_message_text: contentText || `[${message.type}]`,
-      last_message_at: new Date().toISOString(),
-      unread_count: (conversation.unread_count || 0) + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', conversation.id)
+  // Replayed delivery: the message already exists, so acknowledge it as a
+  // no-op. Returning here is what keeps a retry from double-bumping unread,
+  // re-advancing flows, re-firing automations, re-invoking AI handling, and
+  // re-dispatching public webhooks (issue #367).
+  if (!insertedRows || insertedRows.length === 0) {
+    console.info(
+      '[webhook] duplicate inbound message ignored (idempotent replay):',
+      message.id
+    )
+    return
+  }
+
+  // Update conversation. The unread bump is done DB-side (migration 044's
+  // bump_conversation_on_inbound) rather than as a read-modify-write of the
+  // snapshot loaded above: two inbound messages for the same conversation
+  // can process concurrently, and computing `snapshot + 1` in the app let
+  // both reads see the same value and write the same increment, losing one
+  // (issue #369). The RPC increments in a single UPDATE and refreshes the
+  // last-message summary in the same statement.
+  const { error: convError } = await supabaseAdmin().rpc(
+    'bump_conversation_on_inbound',
+    {
+      p_conversation_id: conversation.id,
+      p_last_message_text: contentText || `[${message.type}]`,
+    }
+  )
 
   if (convError) {
     console.error('Error updating conversation:', convError)
@@ -1418,8 +1448,16 @@ async function processMessage(
     automationTriggers.push('booking_cancelled');
   }
 
+  // Awaited — not fire-and-forget. We're inside the route's `after()`
+  // block, which only keeps the function alive for promises it can see, so
+  // a detached dispatch can be frozen part-way through: the log row is
+  // inserted, then the steps never run. That is issue #301's failure mode
+  // recurring one level down, and it's what issue #409 reported as runs
+  // logging zero steps. `runAutomationsForTrigger` owns its own try/catch
+  // and never throws; the `.catch` is belt-and-braces so one trigger
+  // type's failure can't skip the rest of the loop.
   for (const triggerType of automationTriggers) {
-    runAutomationsForTrigger({
+    await runAutomationsForTrigger({
       accountId,
       triggerType: triggerType as any,
       contactId: contactRecord.id,
