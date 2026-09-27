@@ -41,6 +41,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
+import { MediaLightbox } from "./media-lightbox";
+import { collectMediaGallery } from "@/lib/media/gallery";
 import {
   MessageComposer,
   CHAT_MEDIA_BUCKET,
@@ -203,6 +205,10 @@ export function MessageThread({
   }, [isRefreshing, onRefresh]);
   const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
   const [suggestedText, setSuggestedText] = useState<string>("");
+  const [openMedia, setOpenMedia] = useState<{
+    conversationId: string;
+    messageId: string;
+  } | null>(null);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -268,6 +274,19 @@ export function MessageThread({
 
   const conversationId = conversation?.id;
   const hasUnread = (conversation?.unread_count ?? 0) > 0;
+
+  const mediaMessageId =
+    openMedia && openMedia.conversationId === conversationId
+      ? openMedia.messageId
+      : null;
+  const handleMediaChange = useCallback(
+    (messageId: string | null) => {
+      setOpenMedia(
+        messageId && conversationId ? { conversationId, messageId } : null,
+      );
+    },
+    [conversationId],
+  );
 
   // Fetch messages whenever the selected conversation changes. Kept
   // separate from the unread-reset effect so that incoming messages
@@ -719,6 +738,10 @@ export function MessageThread({
     return map;
   }, [messages]);
 
+  // Images + videos in the thread, in order — the set the media viewer
+  // pages through with ← / →.
+  const mediaGallery = useMemo(() => collectMediaGallery(messages), [messages]);
+
   // Bucket reactions by their target message_id for O(1) per-bubble lookup.
   const reactionsByMessageId = useMemo(() => {
     const map = new Map<string, MessageReaction[]>();
@@ -1123,6 +1146,7 @@ export function MessageThread({
                           reactions={msgReactions}
                           currentUserId={user?.id}
                           onToggleReaction={handlePillToggle}
+                          onOpenMedia={handleMediaChange}
                         />
                       </MessageActions>
                     );
@@ -1168,6 +1192,15 @@ export function MessageThread({
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         onSelect={handleSendTemplate}
+      />
+
+      {/* Full-size viewer for the thread's images/videos. Renders nothing
+          until a bubble opens it. */}
+      <MediaLightbox
+        items={mediaGallery}
+        activeId={mediaMessageId}
+        onActiveIdChange={handleMediaChange}
+        contactLabel={contactDisplayName}
       />
     </div>
   );
