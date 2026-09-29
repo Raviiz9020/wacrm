@@ -236,6 +236,17 @@ export async function rescheduleAppointment(
     throw new Error(`Rescheduling failed: ${updateErr.message}`);
   }
 
+  // Sync associated customer asset history service date
+  try {
+    await client
+      .from('customer_asset_history')
+      .update({ service_date: newStartTimeUTC })
+      .eq('appointment_id', appointmentId)
+      .eq('account_id', accountId);
+  } catch (assetErr) {
+    console.error('Failed to update customer asset history on reschedule:', assetErr);
+  }
+
   return updated;
 }
 

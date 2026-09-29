@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
-import { createAppointment } from '../../services/bookingService';
+import { createAppointment, rescheduleAppointment } from '../../services/bookingService';
 
 export async function POST(request: Request) {
   // 1. Role validation - Scheduling appointments requires at least an agent role
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  // 1. Role validation - Cancelling appointments requires at least an agent role
+  // 1. Role validation - Managing appointments requires at least an agent role
   try {
     await requireRole('agent');
   } catch (err) {
@@ -179,7 +179,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'appointment_id is required.' }, { status: 400 });
     }
 
-    const { appointment_id } = body;
+    const { appointment_id, action, date, start_time, status, notes } = body;
 
     // Resolve user authenticated context
     const supabase = await createClient();
@@ -206,7 +206,110 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Fetch details of this appointment before cancelling to supply context variables
+    // --- Action 1: Reschedule Appointment ---
+    if (action === 'reschedule' || (date && start_time)) {
+      if (!date || !start_time) {
+        return NextResponse.json(
+          { error: 'Both date (YYYY-MM-DD) and start_time (HH:MM:SS or HH:MM) are required to reschedule.' },
+          { status: 400 }
+        );
+      }
+
+      const normalizedStartTime = start_time.length === 5 ? `${start_time}:00` : start_time;
+
+      const updated = await rescheduleAppointment(
+        accountId,
+        appointment_id,
+        date,
+        normalizedStartTime,
+        supabase
+      );
+
+      // Fetch appointment details for trigger
+      try {
+        const { data: appt } = await supabase
+          .from('booking_appointments')
+          .select(`
+            id,
+            start_time,
+            contact_id,
+            conversation_id,
+            provider:booking_providers(name),
+            service:booking_services(name),
+            contact:contacts(name)
+          `)
+          .eq('id', appointment_id)
+          .eq('account_id', accountId)
+          .single();
+
+        if (appt) {
+          const { runAutomationsForTrigger } = await import('@/lib/automations/engine');
+          const providerName = (appt.provider as any)?.name || 'Provider';
+          const serviceName = (appt.service as any)?.name || 'Service';
+          const contactName = (appt.contact as any)?.name || 'Customer';
+          const startTimeFormatted = new Date(updated.start_time).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          });
+
+          runAutomationsForTrigger({
+            accountId,
+            triggerType: 'booking_rescheduled' as any,
+            contactId: appt.contact_id,
+            context: {
+              conversation_id: appt.conversation_id || undefined,
+              vars: {
+                booking_start_time: startTimeFormatted,
+                provider_name: providerName,
+                service_name: serviceName,
+                contact_name: contactName,
+                customer_name: contactName,
+                appointment_date: new Date(updated.start_time).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                }),
+                appointment_time: new Date(updated.start_time).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                }),
+                booking_reference: appt.id,
+              },
+            },
+          }).catch(err => console.error('[booking-api] Reschedule automation failed:', err));
+        }
+      } catch (triggerErr) {
+        console.error('[booking-api] Trigger dispatch error:', triggerErr);
+      }
+
+      return NextResponse.json({ success: true, appointment: updated });
+    }
+
+    // --- Action 2: Update Notes ---
+    if (action === 'update_notes' || (notes !== undefined && !status)) {
+      const { error: updateNotesErr } = await supabase
+        .from('booking_appointments')
+        .update({ notes: notes || null, updated_at: new Date().toISOString() })
+        .eq('id', appointment_id)
+        .eq('account_id', accountId);
+
+      if (updateNotesErr) throw updateNotesErr;
+      return NextResponse.json({ success: true });
+    }
+
+    // --- Action 3: Status Transition (or default cancellation) ---
+    const targetStatus = status || 'cancelled';
+    const validStatuses = ['pending', 'confirmed', 'cancelled', 'noshow'];
+    if (!validStatuses.includes(targetStatus)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Fetch details of this appointment before updating to supply context variables
     const { data: appt } = await supabase
       .from('booking_appointments')
       .select(`
@@ -226,62 +329,65 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 });
     }
 
-    // Update appointment status to cancelled
     const { error: updateErr } = await supabase
       .from('booking_appointments')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .update({ status: targetStatus, updated_at: new Date().toISOString() })
       .eq('id', appointment_id)
       .eq('account_id', accountId);
 
     if (updateErr) throw updateErr;
 
-    // Dispatch the booking_cancelled automation trigger
-    try {
-      const { runAutomationsForTrigger } = await import('@/lib/automations/engine');
-      
-      const providerName = (appt.provider as any)?.name || 'Provider';
-      const serviceName = (appt.service as any)?.name || 'Service';
-      const contactName = (appt.contact as any)?.name || 'Customer';
-      const startTimeFormatted = new Date(appt.start_time).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      });
+    // Dispatch automation trigger if cancelled
+    if (targetStatus === 'cancelled') {
+      try {
+        const { runAutomationsForTrigger } = await import('@/lib/automations/engine');
+        const providerName = (appt.provider as any)?.name || 'Provider';
+        const serviceName = (appt.service as any)?.name || 'Service';
+        const contactName = (appt.contact as any)?.name || 'Customer';
+        const startTimeFormatted = new Date(appt.start_time).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        });
 
-      runAutomationsForTrigger({
-        accountId,
-        triggerType: 'booking_cancelled' as any,
-        contactId: appt.contact_id,
-        context: {
-          conversation_id: appt.conversation_id || undefined,
-          vars: {
-            booking_start_time: startTimeFormatted,
-            provider_name: providerName,
-            service_name: serviceName,
-            contact_name: contactName,
-            customer_name: contactName,
-            appointment_date: new Date(appt.start_time).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            }),
-            appointment_time: new Date(appt.start_time).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit'
-            }),
-            booking_reference: appt.id,
-          }
-        }
-      }).catch(err => console.error('[booking-api] Failed to run cancellation automations:', err));
-    } catch (err) {
-      console.error('[booking-api] Cancellation automation dispatch error:', err);
+        runAutomationsForTrigger({
+          accountId,
+          triggerType: 'booking_cancelled' as any,
+          contactId: appt.contact_id,
+          context: {
+            conversation_id: appt.conversation_id || undefined,
+            vars: {
+              booking_start_time: startTimeFormatted,
+              provider_name: providerName,
+              service_name: serviceName,
+              contact_name: contactName,
+              customer_name: contactName,
+              appointment_date: new Date(appt.start_time).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              }),
+              appointment_time: new Date(appt.start_time).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              }),
+              booking_reference: appt.id,
+            },
+          },
+        }).catch(err => console.error('[booking-api] Failed to run cancellation automations:', err));
+      } catch (err) {
+        console.error('[booking-api] Cancellation automation dispatch error:', err);
+      }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, status: targetStatus });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[booking-api] PATCH cancellation failed:', err);
+    if (msg === 'SLOT_ALREADY_BOOKED' || msg === 'SLOT_NOT_AVAILABLE') {
+      return NextResponse.json({ error: 'The selected slot is already booked or unavailable.' }, { status: 409 });
+    }
+    console.error('[booking-api] PATCH appointment failed:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

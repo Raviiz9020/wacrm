@@ -342,6 +342,74 @@ export function useBooking() {
     }
   };
 
+  // Reschedule an appointment
+  const reschedule = async (appointmentId: string, dateStr: string, startTimeStr: string) => {
+    if (!account?.id) return;
+    try {
+      const res = await fetch('/api/v1/booking/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          action: 'reschedule',
+          date: dateStr,
+          start_time: startTimeStr,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to reschedule appointment');
+      fetchAppointments(); // Refresh
+      return json.appointment;
+    } catch (err) {
+      console.error('Reschedule appointment failed:', err);
+      throw err;
+    }
+  };
+
+  // Update appointment status (e.g. confirmed, noshow, cancelled)
+  const updateStatus = async (appointmentId: string, status: 'confirmed' | 'cancelled' | 'noshow' | 'pending') => {
+    if (!account?.id) return;
+    try {
+      const res = await fetch('/api/v1/booking/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          action: 'update_status',
+          status,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update appointment status');
+      fetchAppointments(); // Refresh
+    } catch (err) {
+      console.error('Update appointment status failed:', err);
+      throw err;
+    }
+  };
+
+  // Update appointment notes
+  const updateNotes = async (appointmentId: string, notes: string) => {
+    if (!account?.id) return;
+    try {
+      const res = await fetch('/api/v1/booking/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          action: 'update_notes',
+          notes,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update notes');
+      fetchAppointments(); // Refresh
+    } catch (err) {
+      console.error('Update appointment notes failed:', err);
+      throw err;
+    }
+  };
+
   const deleteProvider = async (providerId: string) => {
     if (!account?.id) return;
     try {
@@ -478,6 +546,9 @@ export function useBooking() {
     getSlots,
     bookAppointment,
     cancel,
+    reschedule,
+    updateStatus,
+    updateNotes,
     deleteAppointment,
     deleteProvider,
     updateProvider,
