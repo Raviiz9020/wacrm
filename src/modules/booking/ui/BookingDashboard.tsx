@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar, Plus, Clock, User, Users, Trash2, CalendarX2, CheckCircle2,
   AlertCircle, Edit2, Search, SlidersHorizontal, MessageSquare,
@@ -173,6 +173,10 @@ export function BookingDashboard() {
   const [bookMatrixRules, setBookMatrixRules] = useState<BookingServicePriceMatrix[]>([]);
   const [selectedMatrixRuleId, setSelectedMatrixRuleId] = useState<string>("");
   const [contactSearch, setContactSearch] = useState("");
+
+  // Prevent accidental tap/click when scrolling calendar timeline
+  const lastSlotTapRef = useRef<{ time: number; providerId: string; hour: number } | null>(null);
+  const slotTouchMovedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!bookServiceId || !account?.id) {
@@ -2021,12 +2025,39 @@ export function BookingDashboard() {
                   return Math.max(38, (duration / 60) * ROW_HEIGHT);
                 };
 
-                const handleEmptySlotClick = (providerId: string, hour: number) => {
+                const handleEmptySlotDoubleClick = (providerId: string, hour: number) => {
                   setBookProviderId(providerId);
                   setBookDate(selectedTimelineDate);
                   const timeFormatted = `${String(hour).padStart(2, "0")}:00:00`;
                   setBookSlot(timeFormatted);
                   setIsBookOpen(true);
+                };
+
+                const handleSlotTouchStart = () => {
+                  slotTouchMovedRef.current = false;
+                };
+
+                const handleSlotTouchMove = () => {
+                  slotTouchMovedRef.current = true;
+                };
+
+                const handleSlotTouchEnd = (providerId: string, hour: number) => {
+                  // If finger was dragged to scroll, ignore completely
+                  if (slotTouchMovedRef.current) return;
+
+                  const now = Date.now();
+                  const lastTap = lastSlotTapRef.current;
+                  if (
+                    lastTap &&
+                    lastTap.providerId === providerId &&
+                    lastTap.hour === hour &&
+                    now - lastTap.time < 450
+                  ) {
+                    lastSlotTapRef.current = null;
+                    handleEmptySlotDoubleClick(providerId, hour);
+                  } else {
+                    lastSlotTapRef.current = { time: now, providerId, hour };
+                  }
                 };
 
                 if (visibleProviders.length === 0) {
@@ -2175,10 +2206,13 @@ export function BookingDashboard() {
                                   return (
                                     <div
                                       key={hour}
-                                      onClick={() => handleEmptySlotClick(provider.id, hour)}
-                                      className="group/slot relative border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors"
+                                      onDoubleClick={() => handleEmptySlotDoubleClick(provider.id, hour)}
+                                      onTouchStart={handleSlotTouchStart}
+                                      onTouchMove={handleSlotTouchMove}
+                                      onTouchEnd={() => handleSlotTouchEnd(provider.id, hour)}
+                                      className="group/slot relative border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors touch-manipulation select-none"
                                       style={{ height: `${ROW_HEIGHT}px` }}
-                                      title={`Click to book ${displayHour}:00 ${ampm} with ${provider.name}`}
+                                      title={`Double-click to book ${displayHour}:00 ${ampm} with ${provider.name}`}
                                     >
                                       {/* Mid-hour divider line */}
                                       <div
@@ -2189,7 +2223,7 @@ export function BookingDashboard() {
                                       {/* Subtle hover prompt to book */}
                                       <div className="opacity-0 group-hover/slot:opacity-100 transition-opacity absolute inset-1 flex items-center justify-center pointer-events-none">
                                         <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1 shadow-2xs">
-                                          <Plus className="h-3 w-3" /> Book {displayHour}:00 {ampm}
+                                          <Plus className="h-3 w-3" /> Double-click to book {displayHour}:00 {ampm}
                                         </span>
                                       </div>
                                     </div>
