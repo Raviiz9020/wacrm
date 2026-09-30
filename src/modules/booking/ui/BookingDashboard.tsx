@@ -46,6 +46,27 @@ function parseProviderName(rawName: string) {
   };
 }
 
+function WhatsAppLogo({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        fill="#25D366"
+        d="M20.52 3.48A11.93 11.93 0 0 0 12.06 0C5.5 0 .16 5.34.16 11.9a11.86 11.86 0 0 0 1.6 5.95L0 24l6.33-1.66a11.87 11.87 0 0 0 5.72 1.46h.01c6.55 0 11.89-5.34 11.89-11.9 0-3.18-1.24-6.17-3.43-8.42z"
+      />
+      <path
+        fill="#FFFFFF"
+        d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.78-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.59-.48-.51-.67-.52l-.57-.01c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48s1.06 2.88 1.2 3.08c.16.2 2.1 3.2 5.08 4.48.71.31 1.27.5 1.7.63.72.23 1.37.2 1.88.12.57-.08 1.76-.72 2.01-1.41.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.34z"
+      />
+    </svg>
+  );
+}
+
 export function BookingDashboard() {
   const { account } = useAuth();
   const {
@@ -1606,29 +1627,21 @@ export function BookingDashboard() {
                                   {appt.conversation_id ? (
                                     <a
                                       href={`/inbox?c=${appt.conversation_id}`}
-                                      className={buttonVariants({
-                                        variant: "outline",
-                                        size: "sm",
-                                        className: "h-6.5 px-2 text-[11px] gap-1 border-primary/30 text-primary hover:bg-primary/10 shrink-0",
-                                      })}
+                                      className="h-6.5 px-1.5 flex items-center gap-1 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-emerald-600 dark:text-emerald-400 transition-all shrink-0 group"
+                                      title={`Open WhatsApp chat in Inbox (${contactName})`}
                                     >
-                                      <MessageSquare className="h-3 w-3" />
-                                      <span>Chat</span>
+                                      <WhatsAppLogo className="h-3.5 w-3.5 shrink-0" />
                                     </a>
                                   ) : cleanPhone ? (
                                     <a
                                       href={`https://wa.me/${cleanPhone}`}
                                       target="_blank"
                                       rel="noreferrer noopener"
-                                      className={buttonVariants({
-                                        variant: "outline",
-                                        size: "sm",
-                                        className: "h-6.5 px-2 text-[11px] gap-1 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 shrink-0",
-                                      })}
+                                      className="h-6.5 px-1.5 flex items-center gap-1 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-emerald-600 dark:text-emerald-400 transition-all shrink-0 group"
+                                      title={`Chat on WhatsApp (${contactPhone})`}
                                     >
-                                      <MessageSquare className="h-3 w-3" />
-                                      <span>WhatsApp</span>
-                                      <ArrowUpRight className="h-2.5 w-2.5 opacity-70" />
+                                      <WhatsAppLogo className="h-3.5 w-3.5 shrink-0" />
+                                      <ArrowUpRight className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
                                     </a>
                                   ) : null}
 
@@ -2271,10 +2284,10 @@ export function BookingDashboard() {
                                               <a
                                                 href={`/inbox?c=${appt.conversation_id}`}
                                                 onClick={e => e.stopPropagation()}
-                                                className="p-1 rounded hover:bg-current/10 transition-colors"
-                                                title="Chat in Inbox"
+                                                className="p-1 rounded hover:bg-emerald-500/10 transition-colors flex items-center justify-center"
+                                                title={`Open WhatsApp chat in Inbox (${contactName})`}
                                               >
-                                                <MessageSquare className="h-3 w-3" />
+                                                <WhatsAppLogo className="h-3.5 w-3.5" />
                                               </a>
                                             ) : cleanPhone ? (
                                               <a
@@ -2282,10 +2295,10 @@ export function BookingDashboard() {
                                                 target="_blank"
                                                 rel="noreferrer noopener"
                                                 onClick={e => e.stopPropagation()}
-                                                className="p-1 rounded hover:bg-current/10 transition-colors"
-                                                title="WhatsApp"
+                                                className="p-1 rounded hover:bg-emerald-500/10 transition-colors flex items-center justify-center"
+                                                title={`Chat on WhatsApp (${cleanPhone})`}
                                               >
-                                                <MessageSquare className="h-3 w-3" />
+                                                <WhatsAppLogo className="h-3.5 w-3.5" />
                                               </a>
                                             ) : null}
 
@@ -2354,20 +2367,20 @@ export function BookingDashboard() {
                                     {appt.conversation_id ? (
                                       <a
                                         href={`/inbox?c=${appt.conversation_id}`}
-                                        className="text-primary hover:text-primary/80 transition-colors p-0.5 rounded hover:bg-primary/10"
-                                        title="Open Chat in Inbox"
+                                        className="hover:opacity-80 transition-opacity p-0.5 rounded inline-flex items-center"
+                                        title="Open WhatsApp chat in Inbox"
                                       >
-                                        <MessageSquare className="h-3.5 w-3.5" />
+                                        <WhatsAppLogo className="h-3.5 w-3.5" />
                                       </a>
                                     ) : appt.contact?.phone ? (
                                       <a
                                         href={`https://wa.me/${appt.contact.phone.replace(/[^0-9]/g, '')}`}
                                         target="_blank"
                                         rel="noreferrer noopener"
-                                        className="text-emerald-500 hover:text-emerald-400 transition-colors p-0.5 rounded hover:bg-emerald-500/10"
-                                        title="Chat on WhatsApp"
+                                        className="hover:opacity-80 transition-opacity p-0.5 rounded inline-flex items-center"
+                                        title={`Chat on WhatsApp (${appt.contact.phone})`}
                                       >
-                                        <MessageSquare className="h-3.5 w-3.5" />
+                                        <WhatsAppLogo className="h-3.5 w-3.5" />
                                       </a>
                                     ) : null}
                                   </div>
@@ -3482,10 +3495,10 @@ export function BookingDashboard() {
                         className={buttonVariants({
                           variant: "outline",
                           size: "sm",
-                          className: "flex-1 h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10",
+                          className: "flex-1 h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10",
                         })}
                       >
-                        <MessageSquare className="h-3.5 w-3.5" />
+                        <WhatsAppLogo className="h-3.5 w-3.5" />
                         <span>Chat in Inbox</span>
                       </a>
                     ) : detailAppt.contact?.phone ? (
@@ -3499,7 +3512,7 @@ export function BookingDashboard() {
                           className: "flex-1 h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10",
                         })}
                       >
-                        <MessageSquare className="h-3.5 w-3.5" />
+                        <WhatsAppLogo className="h-3.5 w-3.5" />
                         <span>WhatsApp</span>
                         <ArrowUpRight className="h-3 w-3 opacity-70" />
                       </a>
