@@ -34,6 +34,8 @@ import {
 } from '../services/industryPresetService';
 import type { CustomerAsset, CustomerAssetHistory, AssetType } from '@/types';
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   car_detailing: Car,
@@ -164,6 +166,18 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
         .catch(err => console.error('Failed to refresh asset history:', err));
     }
   }, [isOpen, selectedAssetId, accountId]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (selectedAssetId && accountId) {
+        getAssetServiceHistory(selectedAssetId, accountId)
+          .then(setHistoryList)
+          .catch(err => console.error('Failed to refresh asset history on focus:', err));
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [selectedAssetId, accountId]);
 
   const handleSelectAsset = async (assetId: string) => {
     if (selectedAssetId === assetId) {
@@ -597,21 +611,60 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
                         <p className="text-[11px] text-muted-foreground italic px-1">No prior service logs recorded.</p>
                       ) : (
                         <div className="space-y-1.5">
-                          {historyList.map((item) => (
-                            <div key={item.id} className="p-2 rounded bg-card border border-border text-[11px] space-y-1">
-                              <div className="flex items-center justify-between font-medium">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-foreground font-semibold">Visit Log</span>
-                                  {item.booking_appointments?.status === 'cancelled' && (
-                                    <span title="Cancelled" className="h-2 w-2 rounded-full bg-red-500 shrink-0 inline-block" />
-                                  )}
-                                  {(item.booking_appointments?.status === 'confirmed' || item.booking_appointments?.status === 'pending') && (
-                                    <span title="Booked" className="h-2 w-2 rounded-full bg-blue-500 shrink-0 inline-block" />
-                                  )}
-                                  {item.booking_appointments?.status === 'completed' && (
-                                    <span title="Completed" className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 inline-block" />
-                                  )}
-                                </div>
+                          {historyList.map((item) => {
+                            const apptStatus = item.booking_appointments?.status?.toLowerCase();
+                            return (
+                              <div
+                                key={item.id}
+                                className={cn(
+                                  "p-2.5 rounded-lg bg-card border text-[11px] space-y-1.5 transition-colors",
+                                  apptStatus === 'noshow'
+                                    ? "border-amber-500/40 bg-amber-500/[0.04] dark:bg-amber-950/20"
+                                    : apptStatus === 'cancelled'
+                                    ? "border-rose-500/30 bg-rose-500/[0.03] opacity-75"
+                                    : "border-border"
+                                )}
+                              >
+                                <div className="flex items-center justify-between font-medium">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-foreground font-semibold">Visit Log</span>
+                                    {apptStatus === 'noshow' && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0 h-4.5 font-semibold flex items-center gap-1 uppercase tracking-wider"
+                                      >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                        No-Show
+                                      </Badge>
+                                    )}
+                                    {apptStatus === 'cancelled' && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 text-[9px] px-1.5 py-0 h-4.5 font-semibold flex items-center gap-1 uppercase tracking-wider"
+                                      >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                        Cancelled
+                                      </Badge>
+                                    )}
+                                    {apptStatus === 'completed' && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4.5 font-semibold flex items-center gap-1 uppercase tracking-wider"
+                                      >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                        Completed
+                                      </Badge>
+                                    )}
+                                    {(apptStatus === 'confirmed' || apptStatus === 'pending') && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30 text-[9px] px-1.5 py-0 h-4.5 font-semibold flex items-center gap-1 uppercase tracking-wider"
+                                      >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                                        Confirmed
+                                      </Badge>
+                                    )}
+                                  </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] text-muted-foreground">
                                     {(() => {
@@ -681,7 +734,8 @@ export function CustomerAssetDrawer({ contactId, accountId, isOpen, onToggle }: 
                                 item.notes && <p className="text-muted-foreground mt-1 leading-normal whitespace-pre-wrap">{item.notes}</p>
                               )}
                             </div>
-                          ))}
+                          );
+                        })}
                         </div>
                       )}
                     </div>

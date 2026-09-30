@@ -423,6 +423,15 @@ export function BookingDashboard() {
       );
     }
 
+    if (appt.status === "noshow") {
+      return (
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 text-[10px] font-semibold flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          no-show
+        </Badge>
+      );
+    }
+
     const now = Date.now();
     const start = new Date(appt.start_time).getTime();
     const end = new Date(appt.end_time).getTime();
@@ -1318,11 +1327,12 @@ export function BookingDashboard() {
               <Select value={filterStatus} onValueChange={val => setFilterStatus(val || "confirmed")}>
                 <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs sm:text-sm border-border bg-background">
                   <span className="truncate">
-                    {filterStatus === "all" ? "All Statuses" : filterStatus === "confirmed" ? "Confirmed" : "Cancelled"}
+                    {filterStatus === "all" ? "All Statuses" : filterStatus === "confirmed" ? "Confirmed" : filterStatus === "noshow" ? "No-Show" : "Cancelled"}
                   </span>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-card">
                   <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="noshow">No-Show</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                   <SelectItem value="all">All Statuses</SelectItem>
                 </SelectContent>
@@ -1493,14 +1503,16 @@ export function BookingDashboard() {
                     </div>
 
                     {/* Cards list */}
-                    <div className="grid gap-3.5 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-2">
                       {groupedAppts[dateStr].map(appt => {
                         const isPast = new Date(appt.end_time).getTime() < Date.now();
                         const contactName = appt.contact?.name || "Client";
                         const contactPhone = appt.contact?.phone || "";
                         const cleanPhone = contactPhone.replace(/[^0-9]/g, "");
                         const initials = contactName
-                          .split(" ")
+                          .replace(/[()[\]{}]/g, "")
+                          .trim()
+                          .split(/\s+/)
                           .map(p => p[0])
                           .join("")
                           .slice(0, 2)
@@ -1512,6 +1524,7 @@ export function BookingDashboard() {
 
                         let borderAccent = "border-l-sky-500";
                         if (appt.status === "cancelled") borderAccent = "border-l-rose-500";
+                        else if (appt.status === "noshow") borderAccent = "border-l-amber-500";
                         else if (end < now) borderAccent = "border-l-slate-400 dark:border-l-slate-600";
                         else if (start <= now && end >= now) borderAccent = "border-l-emerald-500";
                         else if (start - now > 0 && start - now <= 30 * 60 * 1000) borderAccent = "border-l-amber-500";
@@ -1522,79 +1535,85 @@ export function BookingDashboard() {
                             className={cn(
                               "group relative border-border bg-card border-l-4 transition-all duration-200 hover:shadow-md hover:border-border/80 flex flex-col justify-between overflow-hidden",
                               borderAccent,
-                              isPast && appt.status !== "cancelled" ? "opacity-75" : "",
-                              appt.status === "cancelled" ? "opacity-60 bg-muted/20" : ""
+                              isPast && appt.status !== "cancelled" && appt.status !== "noshow" ? "opacity-80" : "",
+                              appt.status === "cancelled" ? "opacity-60 bg-muted/20" : "",
+                              appt.status === "noshow" ? "bg-amber-500/[0.02]" : ""
                             )}
                           >
-                            <CardContent className="p-4 flex flex-col gap-3">
+                            <CardContent className="p-3 sm:p-3.5 flex flex-col gap-2.5">
                               {/* Top Row: Client Info + Status Badge */}
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20">
                                     {initials}
                                   </div>
                                   <div className="min-w-0">
-                                    <h4 className="font-semibold text-sm text-foreground truncate">
+                                    <h4 className="font-semibold text-xs sm:text-[13px] text-foreground truncate leading-tight">
                                       {contactName}
                                     </h4>
-                                    <p className="text-xs text-muted-foreground truncate font-mono">
+                                    <p className="text-[11px] text-muted-foreground truncate font-mono leading-tight">
                                       {contactPhone || "No phone recorded"}
                                     </p>
                                   </div>
                                 </div>
-                                {getSimulatedStatusBadge(appt)}
+                                <div className="shrink-0">
+                                  {getSimulatedStatusBadge(appt)}
+                                </div>
                               </div>
 
-                              {/* Middle Details Grid */}
-                              <div className="grid grid-cols-2 gap-2 text-xs bg-muted/30 rounded-lg p-2.5 border border-border/50">
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                                    Time & Duration
-                                  </span>
-                                  <div className="font-medium text-foreground flex items-center gap-1.5">
-                                    <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-                                    <span>{formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}</span>
+                              {/* Middle Details Box: Compact, dense, high-readability */}
+                              <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-2 border border-border/50 text-xs space-y-1.5">
+                                {/* Row 1: Service Name & Duration */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 font-medium text-foreground truncate min-w-0">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                                    <span className="truncate font-semibold text-xs text-foreground">{appt.service?.name}</span>
                                   </div>
-                                  <span className="text-[10px] text-muted-foreground">({appt.service?.duration_minutes || 30} mins)</span>
+                                  <span className="text-[10px] text-muted-foreground font-medium bg-background/80 dark:bg-background/40 px-1.5 py-0.5 rounded border border-border/50 shrink-0">
+                                    {appt.service?.duration_minutes || 30} mins
+                                  </span>
                                 </div>
 
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
-                                    Service & Staff
-                                  </span>
-                                  <div className="font-medium text-foreground truncate">
-                                    {appt.service?.name}
+                                {/* Row 2: Time Slot & Staff Resource */}
+                                <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <Clock className="h-3 w-3 text-muted-foreground/80 shrink-0" />
+                                    <span className="font-mono text-foreground/90 font-medium">
+                                      {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
+                                    </span>
                                   </div>
-                                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                                  <div className="flex items-center gap-1 truncate shrink-0 max-w-[48%]">
                                     <User className="h-3 w-3 text-muted-foreground/70 shrink-0" />
-                                    <span className="truncate">{appt.provider?.name}</span>
+                                    <span className="truncate text-muted-foreground" title={appt.provider?.name}>
+                                      {appt.provider?.name || "Unassigned"}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Optional Notes */}
                               {appt.notes && (
-                                <div className="bg-primary/5 border border-primary/15 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground italic flex items-start gap-1.5">
-                                  <span className="text-primary font-bold text-xs">“</span>
+                                <div className="bg-primary/5 border border-primary/15 rounded px-2 py-1 text-[11px] text-muted-foreground italic flex items-center gap-1 truncate">
+                                  <span className="text-primary font-bold">“</span>
                                   <span className="truncate flex-1">{appt.notes}</span>
-                                  <span className="text-primary font-bold text-xs">”</span>
+                                  <span className="text-primary font-bold">”</span>
                                 </div>
                               )}
 
-                              {/* Card Footer: WhatsApp-First Action Toolbar */}
-                              <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2 mt-auto">
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* Card Footer: WhatsApp-First Action Toolbar (Single neat line, no wrapping!) */}
+                              <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-1.5 mt-auto">
+                                <div className="flex items-center gap-1 min-w-0 flex-1">
                                   {appt.conversation_id ? (
                                     <a
                                       href={`/inbox?c=${appt.conversation_id}`}
                                       className={buttonVariants({
                                         variant: "outline",
                                         size: "sm",
-                                        className: "h-7 px-2 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10",
+                                        className: "h-6.5 px-2 text-[11px] gap-1 border-primary/30 text-primary hover:bg-primary/10 shrink-0",
                                       })}
                                     >
-                                      <MessageSquare className="h-3.5 w-3.5" />
-                                      <span>Chat in Inbox</span>
+                                      <MessageSquare className="h-3 w-3" />
+                                      <span>Chat</span>
                                     </a>
                                   ) : cleanPhone ? (
                                     <a
@@ -1604,12 +1623,12 @@ export function BookingDashboard() {
                                       className={buttonVariants({
                                         variant: "outline",
                                         size: "sm",
-                                        className: "h-7 px-2 text-xs gap-1 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10",
+                                        className: "h-6.5 px-2 text-[11px] gap-1 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 shrink-0",
                                       })}
                                     >
-                                      <MessageSquare className="h-3.5 w-3.5" />
+                                      <MessageSquare className="h-3 w-3" />
                                       <span>WhatsApp</span>
-                                      <ArrowUpRight className="h-3 w-3 opacity-70" />
+                                      <ArrowUpRight className="h-2.5 w-2.5 opacity-70" />
                                     </a>
                                   ) : null}
 
@@ -1618,11 +1637,11 @@ export function BookingDashboard() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                      className="h-6.5 px-2 text-[11px] gap-1 text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
                                       onClick={() => handleOpenReschedule(appt)}
                                       title="Reschedule this appointment"
                                     >
-                                      <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                                      <CalendarClock className="h-3 w-3 text-primary" />
                                       <span>Reschedule</span>
                                     </Button>
                                   )}
@@ -1632,12 +1651,12 @@ export function BookingDashboard() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                      className="h-6.5 px-1.5 text-[11px] gap-1 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
                                       onClick={() => setSelectedAssetContact({ id: appt.contact!.id, name: contactName })}
-                                      title="View customer assets and records"
+                                      title="View customer vehicle & service records"
                                     >
-                                      <ClipboardList className="h-3.5 w-3.5" />
-                                      <span>Records</span>
+                                      <ClipboardList className="h-3 w-3" />
+                                      <span className="hidden sm:inline">Records</span>
                                     </Button>
                                   )}
 
@@ -1645,22 +1664,22 @@ export function BookingDashboard() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    className="h-6.5 px-1.5 text-[11px] gap-1 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
                                     onClick={() => setDetailAppt(appt)}
                                     title="View full appointment details & notes"
                                   >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    <span>Details</span>
+                                    <FileText className="h-3 w-3" />
+                                    <span className="hidden sm:inline">Details</span>
                                   </Button>
                                 </div>
 
                                 {/* Destructive / Status Actions */}
-                                <div className="flex items-center gap-1 shrink-0">
+                                <div className="flex items-center gap-0.5 shrink-0">
                                   {appt.status === "confirmed" && (
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
+                                      className="h-6.5 w-6.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                       onClick={() => {
                                         triggerConfirm({
                                           title: "Cancel Appointment",
@@ -1672,7 +1691,7 @@ export function BookingDashboard() {
                                       }}
                                       title="Cancel Appointment"
                                     >
-                                      <XCircle className="h-4 w-4" />
+                                      <XCircle className="h-3.5 w-3.5" />
                                     </Button>
                                   )}
 
@@ -1680,7 +1699,7 @@ export function BookingDashboard() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
+                                      className="h-6.5 w-6.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md"
                                       onClick={() => {
                                         triggerConfirm({
                                           title: "Delete Appointment",
@@ -1692,7 +1711,7 @@ export function BookingDashboard() {
                                       }}
                                       title="Delete Appointment permanently"
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   )}
                                 </div>
@@ -1714,25 +1733,29 @@ export function BookingDashboard() {
                     <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                       <User className="h-4 w-4 text-primary" /> Provider Load (Today)
                     </CardTitle>
-                    <CardDescription className="text-xs text-muted-foreground">Active appointments per doctor today</CardDescription>
+                    <CardDescription className="text-xs text-muted-foreground">Active appointments per resource today</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {providerLoads.map(({ provider, count }) => (
-                      <div key={provider.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
-                            {provider.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                  <CardContent className="space-y-2.5">
+                    {providerLoads.map(({ provider, count }) => {
+                      const cleanName = provider.name.replace(/[()[\]{}]/g, '').trim();
+                      const initials = cleanName.split(/\s+/).map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                      return (
+                        <div key={provider.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border">
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                              {initials}
+                            </div>
+                            <div className="text-xs">
+                              <p className="font-semibold text-foreground">{provider.name}</p>
+                              <p className="text-[10px] text-muted-foreground">Available today</p>
+                            </div>
                           </div>
-                          <div className="text-xs">
-                            <p className="font-semibold text-foreground">{provider.name}</p>
-                            <p className="text-[10px] text-muted-foreground">Available today</p>
-                          </div>
+                          <Badge variant="secondary" className="bg-primary/15 text-primary text-xs font-bold px-2 py-0.5 rounded-full border-none">
+                            {count} {count === 1 ? 'booking' : 'bookings'}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="bg-primary/15 text-primary text-xs font-bold px-2 py-0.5 rounded-full border-none">
-                          {count} {count === 1 ? 'booking' : 'bookings'}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
 
@@ -2168,28 +2191,32 @@ export function BookingDashboard() {
                                   const contactName = appt.contact?.name || "Client";
                                   const cleanPhone = appt.contact?.phone ? appt.contact.phone.replace(/[^0-9]/g, "") : "";
 
-                                  let borderAccent = "border-l-sky-500 bg-sky-500/10 border-sky-500/30 text-sky-950 dark:text-sky-100";
+                                  let borderAccent = "border-l-sky-500 bg-sky-50 dark:bg-slate-900 border-sky-200 dark:border-sky-500/40 text-slate-900 dark:text-slate-100";
                                   let dotColor = "bg-sky-500";
                                   let statusLabel = "Confirmed";
 
                                   if (appt.status === "cancelled") {
-                                    borderAccent = "border-l-rose-500 bg-rose-500/10 border-rose-500/30 text-rose-950 dark:text-rose-200 opacity-60";
+                                    borderAccent = "border-l-rose-500 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-500/30 text-rose-950 dark:text-rose-200 opacity-60";
                                     dotColor = "bg-rose-500";
                                     statusLabel = "Cancelled";
+                                  } else if (appt.status === "noshow") {
+                                    borderAccent = "border-l-amber-500 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-500/40 text-amber-950 dark:text-amber-200";
+                                    dotColor = "bg-amber-500";
+                                    statusLabel = "No-Show";
                                   } else {
                                     const now = Date.now();
                                     const start = new Date(appt.start_time).getTime();
                                     const end = new Date(appt.end_time).getTime();
                                     if (end < now) {
-                                      borderAccent = "border-l-slate-400 bg-muted/40 border-border text-foreground opacity-75";
+                                      borderAccent = "border-l-slate-400 bg-slate-50 dark:bg-slate-900/90 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200";
                                       dotColor = "bg-slate-400";
                                       statusLabel = "Completed";
                                     } else if (start <= now && end >= now) {
-                                      borderAccent = "border-l-emerald-500 bg-emerald-500/15 border-emerald-500/40 text-emerald-950 dark:text-emerald-100 ring-1 ring-emerald-500/30";
+                                      borderAccent = "border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-500/40 text-emerald-950 dark:text-emerald-100 ring-1 ring-emerald-500/30";
                                       dotColor = "bg-emerald-500 animate-pulse";
                                       statusLabel = "In Session";
                                     } else if (start - now > 0 && start - now <= 30 * 60 * 1000) {
-                                      borderAccent = "border-l-amber-500 bg-amber-500/15 border-amber-500/40 text-amber-950 dark:text-amber-100";
+                                      borderAccent = "border-l-amber-500 bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-500/40 text-amber-950 dark:text-amber-100";
                                       dotColor = "bg-amber-500";
                                       statusLabel = "Arriving Soon";
                                     }
@@ -2211,27 +2238,27 @@ export function BookingDashboard() {
                                       className={cn(
                                         "absolute border-l-4 rounded-lg p-2 flex flex-col justify-between shadow-xs transition-all hover:shadow-md hover:z-20 cursor-pointer overflow-hidden border",
                                         borderAccent,
-                                        isPast && appt.status !== "cancelled" ? "opacity-80" : ""
+                                        isPast && appt.status !== "cancelled" && appt.status !== "noshow" ? "opacity-85" : ""
                                       )}
                                       title={`${contactName} — ${appt.service?.name} (${formatTimeStr(appt.start_time)} - ${formatTimeStr(appt.end_time)})`}
                                     >
                                       {/* Top row: Time + Status Dot */}
                                       <div className="flex items-center justify-between gap-1 text-[10px] font-semibold leading-tight">
-                                        <span className="truncate flex items-center gap-1 font-mono">
+                                        <span className="truncate flex items-center gap-1 font-mono text-foreground dark:text-slate-200">
                                           <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor)} />
                                           {formatTimeStr(appt.start_time)} - {formatTimeStr(appt.end_time)}
                                         </span>
-                                        <span className="text-[9px] uppercase tracking-wider opacity-80 shrink-0">
+                                        <span className="text-[9px] uppercase tracking-wider font-semibold opacity-90 text-foreground dark:text-slate-300 shrink-0">
                                           {statusLabel}
                                         </span>
                                       </div>
 
                                       {/* Middle row: Customer Name & Service */}
                                       <div className="min-w-0 my-0.5">
-                                        <p className="font-bold text-xs truncate leading-tight">
+                                        <p className="font-bold text-xs truncate leading-tight text-foreground dark:text-white">
                                           {contactName}
                                         </p>
-                                        <p className="text-[11px] truncate opacity-90 leading-tight">
+                                        <p className="text-[11px] truncate opacity-90 leading-tight text-muted-foreground dark:text-slate-300">
                                           {appt.service?.name} ({appt.service?.duration_minutes}m)
                                         </p>
                                       </div>
